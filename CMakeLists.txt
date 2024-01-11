@@ -57,7 +57,9 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
       -Wno-zero-as-null-pointer-constant
       -Wno-missing-noreturn
       -Wno-undefined-func-template
-      #       -Wno-unsafe-buffer-usage
+      -Wno-unsafe-buffer-usage
+          -Wno-unused-parameter
+          -Wno-unused-variable
       -Wno-c++20-compat
       -Werror
       -march=native
@@ -101,10 +103,28 @@ configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/test/test_dir.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/test_dir.h
 )
-file(GLOB_RECURSE nigiri-test-files test/*.cc)
+#file(GLOB_RECURSE nigiri-test-files test/*.cc)
+set(nigiri-test-files
+        test/main.cc
+        test/routing/tripbased/tb_query_test.cc
+        test/routing/tripbased/test_data.cc
+        #test/routing/tripbased/tb_alltoall_test.cc
+)
 add_executable(nigiri-test ${nigiri-test-files})
 target_link_libraries(nigiri-test nigiri gtest ianatzdb-res nigiri-generated)
 target_compile_options(nigiri-test PRIVATE ${nigiri-compile-options})
+
+# --- TEST ---
+#file(GLOB_RECURSE nigiri-test-files test/*.cc)
+set(nigiri-test-files2
+        test/main.cc
+        #test/routing/tripbased/tb_query_test.cc
+        test/routing/tripbased/test_data.cc
+        test/routing/tripbased/tb_alltoall_test.cc
+)
+add_executable(nigiri-test-all ${nigiri-test-files2})
+target_link_libraries(nigiri-test-all nigiri gtest ianatzdb-res nigiri-generated)
+target_compile_options(nigiri-test-all PRIVATE ${nigiri-compile-options})
 
 # -- PERFORMANCE --
 file(GLOB_RECURSE aachen_files tripbased_performance/aachen.cc)

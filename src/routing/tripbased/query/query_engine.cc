@@ -42,6 +42,7 @@ query_engine::query_engine(timetable const& tt,
   // reset state for new query
   state_.reset(base);
 
+  // Algorithm 18: l: 5-8
   // init l_, i.e., routes that reach the destination at certain stop idx
   if (dist_to_dest.empty()) {
     // create l_entries for station-to-station query

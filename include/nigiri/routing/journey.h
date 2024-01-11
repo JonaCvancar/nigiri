@@ -53,6 +53,7 @@ struct journey {
     location_idx_t from_, to_;
     unixtime_t dep_time_, arr_time_;
     std::variant<run_enter_exit, footpath, offset> uses_;
+    bitfield_idx_t bitfield_idx_;
   };
 
 #ifdef TB_MIN_WALK

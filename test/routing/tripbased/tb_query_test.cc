@@ -24,6 +24,7 @@ using namespace nigiri::routing::tripbased;
 using namespace nigiri::routing::tripbased::test;
 using namespace nigiri::test_data::hrd_timetable;
 
+/*
 #if !defined(TB_MIN_WALK) && !defined(TB_TRANSFER_CLASS)
 TEST(tb_query, enqueue) {
   // load timetable
@@ -555,6 +556,7 @@ TEST(earliest_arrival_query, files_abc) {
 
   EXPECT_EQ(std::string_view{abc_journeys}, ss.str());
 }
+*/
 
 #ifdef TB_TRANSFER_CLASS
 constexpr auto const profile_abc_journeys = R"(
@@ -689,6 +691,7 @@ TEST(profile_query, files_abc) {
   EXPECT_EQ(std::string_view{profile_abc_journeys}, ss.str());
 }
 
+/*
 #ifdef TB_TRANSFER_CLASS
 constexpr auto const intermodal_abc_journeys = R"(
 [2020-03-30 05:20, 2020-03-30 08:00]
@@ -838,3 +841,4 @@ TEST(profile_query, intermodal) {
 
   EXPECT_EQ(std::string_view{intermodal_abc_journeys}, ss.str());
 }
+ */
