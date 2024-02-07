@@ -372,7 +372,7 @@ service::service(config const& c,
 }
 
 std::string service::display_name(nigiri::timetable& tt) const {
-  static auto const unknown_catergory = category{.name_ = "UKN",
+  static auto const unknown_category = category{.name_ = "UKN",
                                                  .long_name_ = "UNKNOWN",
                                                  .output_rule_ = 0U,
                                                  .clasz_ = clasz::kOther};
@@ -385,7 +385,7 @@ std::string service::display_name(nigiri::timetable& tt) const {
   auto const& cat =
       *(begin_to_end_info_.category_.has_value()
             ? begin_to_end_info_.category_.value()
-            : sections_.front().category_.value_or(&unknown_catergory));
+            : sections_.front().category_.value_or(&unknown_category));
   auto const& provider = tt.providers_.at(
       begin_to_end_info_.admin_.has_value() ? begin_to_end_info_.admin_.value()
                                             : sections_.front().admin_.value());

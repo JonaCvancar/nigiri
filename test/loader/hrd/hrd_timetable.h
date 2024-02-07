@@ -19,6 +19,13 @@ constexpr interval<std::chrono::sys_days> full_period() {
   return {from, to};
 }
 
+constexpr interval<std::chrono::sys_days> test_full_period() {
+    using namespace date;
+    constexpr auto const from = (2023_y / June / 11).operator sys_days();
+    constexpr auto const to = (2024_y / June / 8).operator sys_days();
+    return {from, to};
+}
+
 constexpr auto const basic_info_file_content = R"(26.03.2020
 02.04.2020
 Fahrplan 2020$29.03.2020 03:15:02$5.20.39$INFO+

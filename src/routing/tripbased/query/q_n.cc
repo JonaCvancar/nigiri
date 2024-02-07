@@ -158,7 +158,7 @@ bool q_n::enqueue(std::uint16_t const transport_day,
     auto const transport_segment_idx =
         embed_day_offset(day_offset, transport_idx);
 
-    // look-up the earliest stop index reached
+    // look-up the earliest stop index reached R(L)-LoopUp
     auto const r_query_res = r_.query(transport_segment_idx, n_transfers);
     if (stop_idx < r_query_res) {
 

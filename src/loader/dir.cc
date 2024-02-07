@@ -67,10 +67,7 @@ file fs_dir::get_file(std::filesystem::path const& p) const {
     mmap_content& operator=(mmap_content&&) = delete;
     mmap_content& operator=(mmap_content const&) = delete;
     explicit mmap_content(std::filesystem::path const& p)
-        : mmap_{p.string().c_str(), cista::mmap::protection::READ} {
-      log(log_lvl::info, "loader.fs_dir", "loaded {}: {} bytes", p,
-          mmap_.size());
-    }
+        : mmap_{p.string().c_str(), cista::mmap::protection::READ} {}
     ~mmap_content() final = default;
     std::string_view get() const final { return mmap_.view(); }
     cista::mmap mmap_;

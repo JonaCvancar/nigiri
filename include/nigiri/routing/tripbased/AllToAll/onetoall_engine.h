@@ -24,17 +24,6 @@ namespace nigiri {
 
 namespace nigiri::routing::tripbased {
 
-    /*
-    struct oneToAll {
-        explicit oneToAll(timetable &tt, std::uint16_t transfer_time_max = 1440) :
-                pp_(tt, transfer_time_max)
-        {
-        }
-
-        preprocessor pp_;
-    };
-    */
-
     struct oneToAll_stats {
         bool cache_pressure_reduction_{false};
         bool lower_bound_pruning_{false};
@@ -88,7 +77,7 @@ namespace nigiri::routing::tripbased {
         void execute(unixtime_t const start_time,
                      std::uint8_t const max_transfers,
                      unixtime_t const worst_time_at_dest,
-                     pareto_set<journey>& results
+                     std::vector<pareto_set<journey>>& results
                      );
 
     private:
@@ -98,8 +87,10 @@ namespace nigiri::routing::tripbased {
                                    std::int32_t const,
                                    footpath const);
 
-        void handle_segment(unixtime_t const worst_time_at_dest, // unixtime_t const start_time,
-                            std::uint8_t const n, // pareto_set<journey>& results,
+        void handle_segment(unixtime_t const start_time,
+                            unixtime_t const worst_time_at_dest,
+                            std::vector<pareto_set<journey>>& results,
+                            std::uint8_t const n,
                             queue_idx_t const q_cur);
 
         void add_segment_leg(journey& j, transport_segment const& seg) const;

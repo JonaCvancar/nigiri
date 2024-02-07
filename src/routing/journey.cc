@@ -7,6 +7,8 @@
 #include "nigiri/rt/frun.h"
 #include "nigiri/timetable.h"
 
+#include "nigiri/routing/tripbased/dbg.h"
+
 namespace nigiri::routing {
 
 void journey::leg::print(std::ostream& out,
@@ -44,7 +46,7 @@ void journey::print(std::ostream& out,
                     bool const debug) const {
   if (legs_.empty()) {
     out << "no legs [start_time=" << start_time_ << ", dest_time=" << dest_time_
-        << ", transfers=" << static_cast<int>(transfers_) << "\n";
+        << ", transfers=" << static_cast<int>(transfers_) << ", dest_stop=" << tripbased::location_name(tt, dest_) << "\n";
     return;
   }
 

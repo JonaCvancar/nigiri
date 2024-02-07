@@ -13,25 +13,38 @@
 #ifndef GERMANY_TO
 #define GERMANY_TO (2022_y / December / 10)
 #endif
+#ifndef AACHEN_TEST_FROM
+#define AACHEN_TEST_FROM (2023_y / June / 11)
+#endif
+#ifndef AACHEN_TEST_TO
+#define AACHEN_TEST_TO (2024_y / June / 8)
+#endif
 
 namespace nigiri::routing::tripbased::performance {
 
-constexpr interval<std::chrono::sys_days> aachen_period() {
-  using namespace date;
-  constexpr auto const from = (2020_y / December / 14).operator sys_days();
-  constexpr auto const to = (AACHEN_TO).operator sys_days();
-  return {from, to};
-}
-constexpr interval<std::chrono::sys_days> vbb_period() {
-  using namespace date;
-  constexpr auto const from = (2022_y / December / 9).operator sys_days();
-  constexpr auto const to = (VBB_TO).operator sys_days();
-  return {from, to};
-}
-constexpr interval<std::chrono::sys_days> germany_period() {
-  using namespace date;
-  constexpr auto const from = (2021_y / November / 26).operator sys_days();
-  constexpr auto const to = (GERMANY_TO).operator sys_days();
-  return {from, to};
-}
+    constexpr interval<std::chrono::sys_days> aachen_test_period() {
+        using namespace date;
+        constexpr auto const from = (AACHEN_TEST_FROM).operator sys_days();
+        constexpr auto const to = (AACHEN_TEST_TO).operator sys_days();
+        return {from, to};
+    }
+
+    constexpr interval<std::chrono::sys_days> aachen_period() {
+        using namespace date;
+        constexpr auto const from = (2020_y / December / 14).operator sys_days();
+        constexpr auto const to = (AACHEN_TO).operator sys_days();
+        return {from, to};
+    }
+    constexpr interval<std::chrono::sys_days> vbb_period() {
+        using namespace date;
+        constexpr auto const from = (2022_y / December / 9).operator sys_days();
+        constexpr auto const to = (VBB_TO).operator sys_days();
+        return {from, to};
+    }
+    constexpr interval<std::chrono::sys_days> germany_period() {
+        using namespace date;
+        constexpr auto const from = (2021_y / November / 26).operator sys_days();
+        constexpr auto const to = (GERMANY_TO).operator sys_days();
+        return {from, to};
+    }
 }  // namespace nigiri::routing::tripbased::performance

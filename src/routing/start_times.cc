@@ -194,6 +194,15 @@ void add_starts_in_interval(direction const search_dir,
   // considering a journey from outside the interval (i.e. outside journey
   // departs later and arrives at the same time). These journeys outside the
   // interval will be filtered out before returning the result.
+  //trace_start("Length of starts before on_trip(): {}\n", starts.size());
+  /*trace_start("add_ontrip(): time_at_start={}, time_at_Stop= {} at {}\n", search_dir == direction::kForward
+        ? interval.to_
+        : interval.from_ - 1_minutes,
+        search_dir == direction::kForward
+        ? interval.to_ + d
+        : interval.from_ - 1_minutes - d,
+        l);
+        */
   if (add_ontrip) {
     insert_sorted(starts,
                   start{.time_at_start_ = search_dir == direction::kForward
@@ -205,6 +214,7 @@ void add_starts_in_interval(direction const search_dir,
                         .stop_ = l},
                   cmp);
   }
+    //trace_start("Length of starts after on_trip(): {}\n", starts.size());
 }
 
 void get_starts(direction const search_dir,

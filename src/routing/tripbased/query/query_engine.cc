@@ -121,6 +121,9 @@ void query_engine::execute(unixtime_t const start_time,
 #endif
   // init Q_0
   for (auto const& qs : state_.query_starts_) {
+#ifndef NDEBUG
+      TBDL << "State query starts size: " << state_.query_starts_.size() << "\n";
+#endif
     handle_start(qs);
   }
 

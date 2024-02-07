@@ -78,9 +78,9 @@ void preprocessor::build_part(preprocessor* const pp) {
 
     // iterate transports of the current route
     for (auto const t : route_transports) {
-#ifndef NDEBUG
+/*#ifndef NDEBUG
       TBDL << "Processing transport " << t << "\n";
-#endif
+#endif*/
 
       // partial transfer set for this transport
       part_t part;
@@ -124,11 +124,11 @@ void preprocessor::build_part(preprocessor* const pp) {
 #endif
           }
 
-#ifndef NDEBUG
+/*#ifndef NDEBUG
           TBDL << "Examining neighbor (" << neighbor.stop_idx_from_ << ", "
                << neighbor.route_idx_to_ << ", " << neighbor.stop_idx_to_
                << ", " << neighbor.footpath_length_ << ")\n";
-#endif
+#endif*/
 
           auto const tau_arr_t_i =
               pp->tt_.event_mam(t, neighbor.stop_idx_from_, event_type::kArr);
@@ -139,12 +139,12 @@ void preprocessor::build_part(preprocessor* const pp) {
           auto const tau_q_tod = tau_q % 1440;
           auto sigma_fpw = static_cast<std::int8_t>(tau_q / 1440);
 
-#ifndef NDEBUG
+/*#ifndef NDEBUG
           TBDL << "Transport " << t
                << " arrives at source stop: " << dhhmm(alpha)
                << ", earliest possible departure at target stop: "
                << dhhmm(tau_q) << "\n";
-#endif
+#endif*/
 
           // departure times of transports of target route at stop j
           auto const event_times = pp->tt_.event_times_at_stop(
@@ -184,11 +184,11 @@ void preprocessor::build_part(preprocessor* const pp) {
                 pp->tt_.route_transport_ranges_[neighbor.route_idx_to_]
                                                [static_cast<std::size_t>(k)];
 
-#ifndef NDEBUG
+/*#ifndef NDEBUG
             TBDL << "Transport " << u
                  << " departs at target stop: " << dhhmm(tau_dep_alpha_u_j)
                  << "\n";
-#endif
+#endif*/
 
             // shift amount due to number of times transport u passed
             // midnight
@@ -257,11 +257,11 @@ void preprocessor::build_part(preprocessor* const pp) {
 #endif
               // recheck theta
               if (theta.any()) {
-#ifndef NDEBUG
+/*#ifndef NDEBUG
                 TBDL << "Adding transfer: (transport " << t << ", stop "
                      << neighbor.stop_idx_from_ << ") -> (transport " << u
                      << ", stop " << neighbor.stop_idx_to_ << ")\n";
-#endif
+#endif*/
 
                 // add transfer to set
                 part.second[neighbor.stop_idx_from_].emplace_back(
@@ -567,10 +567,10 @@ void preprocessor::line_transfers(
   // sort neighborhood
   std::sort(neighborhood.begin(), neighborhood.end(), line_transfer_comp);
 
-#ifndef NDEBUG
+/*#ifndef NDEBUG
   TBDL << "build neighborhood of route " << route_from
        << " with size = " << neighborhood.size() << "\n";
-#endif
+#endif*/
 }
 
 void preprocessor::line_transfers_fp(
@@ -591,10 +591,10 @@ void preprocessor::line_transfers_fp(
       // target location of the transfer
       auto const location_idx_to = stop{stop_seq_to[j]}.location_idx();
       if (location_idx_to == fp.target() && stop{stop_seq_to[j]}.in_allowed()) {
-#ifndef NDEBUG
+/*#ifndef NDEBUG
         TBDL << "Checking for U-turn transfer: (" << i << ", " << route_to
              << ", " << j << ", " << fp.duration() << ")\n";
-#endif
+#endif*/
 
         // check for U-turn transfer
         bool is_uturn = false;
@@ -606,10 +606,10 @@ void preprocessor::line_transfers_fp(
                   location_to_next.location_idx() &&
               location_from_prev.out_allowed() &&
               location_to_next.in_allowed()) {
-#ifndef NDEBUG
+/*#ifndef NDEBUG
             TBDL << "Next location of route_to is previous location of "
                     "route_from\n";
-#endif
+#endif*/
             // check if change time of alternative transfer is equal or
             // less
             is_uturn = tt_.locations_
@@ -622,10 +622,10 @@ void preprocessor::line_transfers_fp(
           neighborhood.emplace_back(i, route_to, j, fp.duration());
         } else {
           ++prepro_stats_.n_u_turn_transfers_;
-#ifndef NDEBUG
+/*#ifndef NDEBUG
           TBDL << "Discarded U-turn transfer: (" << i << ", " << route_to
                << ", " << j << ", " << fp.duration() << ")\n";
-#endif
+#endif*/
         }
       }
     }

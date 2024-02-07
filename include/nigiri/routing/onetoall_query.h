@@ -4,6 +4,7 @@
 #include <variant>
 #include <vector>
 
+#include "nigiri/routing/debug.h"
 #include "nigiri/common/interval.h"
 #include "nigiri/footpath.h"
 #include "nigiri/routing/limits.h"

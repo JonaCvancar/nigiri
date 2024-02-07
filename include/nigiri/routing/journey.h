@@ -81,12 +81,17 @@ struct journey {
     }
   }
 #else
+
   bool dominates(journey const& o) const {
-    if (start_time_ <= dest_time_) {
+      if (transfers_ == 0 && o.transfers_ == 0) {
+          // Both journeys have no transfers, prioritize by earliest departure time
+          return start_time_ < o.start_time_;
+      }
+      if (start_time_ <= dest_time_) {
       return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
-             dest_time_ <= o.dest_time_;
+             dest_time_ <= o.dest_time_ && travel_time() > o.travel_time();
     } else {
-      return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
+          return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
              dest_time_ >= o.dest_time_;
     }
   }
@@ -108,6 +113,7 @@ struct journey {
   unixtime_t dest_time_;
   location_idx_t dest_;
   std::uint8_t transfers_{0U};
+  bitfield_idx_t bitfield_idx_;
 #ifdef TB_MIN_WALK
   std::uint16_t time_walk_{0U};
 #elifdef TB_TRANSFER_CLASS

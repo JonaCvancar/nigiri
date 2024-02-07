@@ -16,6 +16,7 @@
 #include "nigiri/routing/start_times.h"
 #include "nigiri/timetable.h"
 #include "nigiri/types.h"
+#include "nigiri/routing/tripbased/dbg.h"
 
 namespace nigiri::routing {
 
@@ -28,18 +29,17 @@ namespace nigiri::routing {
         ~onetoall_search_state() = default;
 
         std::vector<start> starts_;
-        pareto_set<journey> results_;
+        std::vector< pareto_set<journey> > results_;
     };
 
     struct onetoall_search_stats {
-        std::uint64_t lb_time_{0ULL};
         std::uint64_t search_iterations_{0ULL};
         std::uint64_t interval_extensions_{0ULL};
     };
 
     template <typename AlgoStats>
     struct routing_result {
-        pareto_set<journey> const* journeys_{nullptr};
+        std::vector< pareto_set<journey>> const* journeys_{nullptr};
         interval<unixtime_t> interval_;
         onetoall_search_stats search_stats_;
         AlgoStats algo_stats_;
@@ -53,13 +53,6 @@ namespace nigiri::routing {
         static constexpr auto const kBwd = (SearchDir == direction::kBackward);
 
         Algo init(algo_state_t& algo_state) {
-
-            UTL_START_TIMING(lb);
-
-            UTL_STOP_TIMING(lb);
-            stats_.lb_time_ = static_cast<std::uint64_t>(UTL_TIMING_MS(lb));
-
-
             return Algo{
                     tt_,
                     rtt_,
@@ -91,8 +84,10 @@ namespace nigiri::routing {
 
         routing_result<algo_stats_t> execute() {
             state_.results_.clear();
+            state_.results_.resize(tt_.n_locations());
 
             state_.starts_.clear();
+            // checks for lines departing from starts location and adds their start times to state starts
             add_start_labels(q_.start_time_, true);
 
             while (true) {
@@ -174,6 +169,7 @@ namespace nigiri::routing {
                 ++stats_.search_iterations_;
             }
 
+            /*
             if (is_pretrip()) {
                 utl::erase_if(state_.results_, [&](journey const& j) {
                     return !search_interval_.contains(j.start_time_) ||
@@ -183,6 +179,7 @@ namespace nigiri::routing {
                     return a.start_time_ < b.start_time_;
                 });
             }
+            */
 
             return {.journeys_ = &state_.results_,
                     .interval_ = search_interval_,
@@ -198,14 +195,15 @@ namespace nigiri::routing {
         bool is_pretrip() const { return !is_ontrip(); }
 
         unsigned n_results_in_interval() const {
-            if (holds_alternative<interval<unixtime_t>>(q_.start_time_)) {
+            /*if (holds_alternative<interval<unixtime_t>>(q_.start_time_)) {
                 auto count = utl::count_if(state_.results_, [&](journey const& j) {
                     return search_interval_.contains(j.start_time_);
                 });
                 return static_cast<unsigned>(count);
             } else {
                 return static_cast<unsigned>(state_.results_.size());
-            }
+            }*/
+            return static_cast<unsigned>(state_.results_.size());
         }
 
         bool max_interval_reached() const {
@@ -226,9 +224,11 @@ namespace nigiri::routing {
         }
 
         void remove_ontrip_results() {
+            /*
             utl::erase_if(state_.results_, [&](journey const& j) {
                 return !search_interval_.contains(j.start_time_);
             });
+             */
         }
 
         void search_interval() {
@@ -253,6 +253,7 @@ namespace nigiri::routing {
                         algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
                                      state_.results_);
 
+                        //ToDo last step
                         /*
                         for (auto& j : state_.results_) {
                           if (j.legs_.empty() &&

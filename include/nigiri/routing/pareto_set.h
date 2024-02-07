@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include <tuple>
 #include <vector>
+#include <iostream>
 
 namespace nigiri {
 

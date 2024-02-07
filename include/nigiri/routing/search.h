@@ -138,46 +138,14 @@ struct search {
     add_start_labels(q_.start_time_, true);
 
     while (true) {
-      trace("start_time={}\n", search_interval_);
-
+        trace("start_time={}\n", search_interval_);
       search_interval();
 
       if (is_ontrip() || max_interval_reached() ||
           n_results_in_interval() >= q_.min_connection_count_) {
-        trace(
-            "  finished: is_ontrip={}, max_interval_reached={}, "
-            "extend_earlier={}, extend_later={}, initial={}, interval={}, "
-            "timetable={}, number_of_results_in_interval={}\n",
-            is_ontrip(), max_interval_reached(), q_.extend_interval_earlier_,
-            q_.extend_interval_later_,
-            std::visit(
-                utl::overloaded{
-                    [](interval<unixtime_t> const& start_interval) {
-                      return start_interval;
-                    },
-                    [](unixtime_t const start_time) {
-                      return interval<unixtime_t>{start_time, start_time};
-                    }},
-                q_.start_time_),
-            search_interval_, tt_.external_interval(), n_results_in_interval());
         break;
       } else {
-        trace(
-            "  continue: max_interval_reached={}, extend_earlier={}, "
-            "extend_later={}, initial={}, interval={}, timetable={}, "
-            "number_of_results_in_interval={}\n",
-            max_interval_reached(), q_.extend_interval_earlier_,
-            q_.extend_interval_later_,
-            std::visit(
-                utl::overloaded{
-                    [](interval<unixtime_t> const& start_interval) {
-                      return start_interval;
-                    },
-                    [](unixtime_t const start_time) {
-                      return interval<unixtime_t>{start_time, start_time};
-                    }},
-                q_.start_time_),
-            search_interval_, tt_.external_interval(), n_results_in_interval());
+
       }
 
       state_.starts_.clear();
@@ -189,13 +157,11 @@ struct search {
           q_.extend_interval_later_
               ? tt_.external_interval().clamp(search_interval_.to_ + 60_minutes)
               : search_interval_.to_};
-      trace("interval adapted: {} -> {}\n", search_interval_, new_interval);
 
       if (new_interval.from_ != search_interval_.from_) {
         add_start_labels(interval{new_interval.from_, search_interval_.from_},
                          kBwd);
         if constexpr (kBwd) {
-          trace("dir=BWD, interval extension earlier -> reset state\n");
           algo_.reset_arrivals();
           remove_ontrip_results();
         }
@@ -205,7 +171,6 @@ struct search {
         add_start_labels(interval{search_interval_.to_, new_interval.to_},
                          kFwd);
         if constexpr (kFwd) {
-          trace("dir=BWD, interval extension later -> reset state\n");
           algo_.reset_arrivals();
           remove_ontrip_results();
         }
@@ -301,6 +266,7 @@ private:
   }
 
   void search_interval() {
+      trace("Search Interval(): State starts size: {}", state_.starts_.size());
     utl::equal_ranges_linear(
         state_.starts_,
         [](start const& a, start const& b) {
@@ -321,13 +287,14 @@ private:
           algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
                         state_.results_);
 
+          /*
           for (auto& j : state_.results_) {
             if (j.legs_.empty() &&
                 (is_ontrip() || search_interval_.contains(j.start_time_)) &&
                 j.travel_time() < fastest_direct_) {
               algo_.reconstruct(q_, j);
             }
-          }
+          }*/
         });
   }
 

@@ -112,6 +112,7 @@ std::pair<std::uint8_t, std::uint8_t> reached::transfer_class(
 void reached::update(transport_segment_idx_t const transport_segment_idx,
                      std::uint16_t const stop_idx,
                      std::uint16_t const n_transfers) {
+    // Reached Dominates in add
   data_[tt_.transport_route_[transport_idx(transport_segment_idx)].v_].add(
       reached_entry{transport_segment_idx, stop_idx, n_transfers});
 }

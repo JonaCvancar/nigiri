@@ -1,7 +1,7 @@
 #pragma once
 
 #include "nigiri/routing/tripbased/preprocessing/preprocessor.h"
-#include "nigiri/routing/tripbased/query/q_n.h"
+#include "nigiri/routing/tripbased/AllToAll/onetoall_q_n.h"
 #include "nigiri/routing/tripbased/settings.h"
 #include "nigiri/types.h"
 
@@ -23,7 +23,10 @@ namespace nigiri::routing::tripbased {
         oneToAll_state() = delete;
         oneToAll_state(timetable const& tt, transfer_set const& ts)
                 : ts_{ts}, r_{tt}, q_n_{r_} {
-            t_min_.resize(tt.locations_.coordinates_.size());
+            t_min_.resize(tt.n_locations());
+            for(unsigned int i = 0; i < tt.n_locations(); ++i) {
+                t_min_[i].resize(kNumTransfersMax, unixtime_t::max());
+            }
             q_n_.start_.reserve(kNumTransfersMax);
             q_n_.end_.reserve(kNumTransfersMax);
             q_n_.segments_.reserve(10000);
@@ -39,17 +42,14 @@ namespace nigiri::routing::tripbased {
         // transfer set built by preprocessor
         transfer_set const& ts_;
 
-
         // reached stops per transport
-        reached r_;
-
+        onetoall_reached r_;
 
         // minimum arrival times per number of transfers
-        vecvec<stop_idx_t, unixtime_t> t_min_;
-
+        std::vector<std::vector<unixtime_t>> t_min_;
 
         // queues of transport segments
-        q_n q_n_;
+        onetoall_q_n q_n_;
 
         std::vector<oneToAll_start> query_starts_;
     };

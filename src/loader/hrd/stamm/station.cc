@@ -35,6 +35,8 @@ void parse_station_names(config const& c,
         s.name_ = iso_8859_1_to_utf8(name.view());
         s.id_ = eva_num;
       });
+
+  log(log_lvl::info, "loader.hrd.station", "station names done");
 }
 
 void parse_station_coordinates(config const& c,
@@ -55,6 +57,8 @@ void parse_station_coordinates(config const& c,
         utl::parse_verify<double>(line.substr(c.st_.coords_.lat_).trim()),
         utl::parse_verify<double>(line.substr(c.st_.coords_.lng_).trim())};
   });
+
+    log(log_lvl::info, "loader.hrd.station", "station coordinates done");
 }
 
 void parse_equivilant_stations(config const& c,
@@ -102,6 +106,7 @@ void parse_equivilant_stations(config const& c,
         } else {  // footpaths
         }
       });
+    log(log_lvl::info, "loader.hrd.station", "station equivalents done");
 }
 
 void parse_footpaths(config const& c,
@@ -161,6 +166,8 @@ void parse_footpaths(config const& c,
       }
     }
   });
+
+    log(log_lvl::info, "loader.hrd.station", "station footpaths done");
 }
 
 struct hash {

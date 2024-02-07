@@ -11,9 +11,13 @@
 
 #include "./test_data.h"
 
-#include "nigiri/routing/tripbased/AllToAll/alltoall.h"
+#include "nigiri/routing/tripbased/AllToAll/onetoall_engine.h"
 
 #include "tb_alltoall_test.h"
+
+#include "utl/progress_tracker.h"
+
+#include "nigiri/routing/tripbased/dbg.h"
 
 using namespace nigiri;
 using namespace nigiri::test;
@@ -26,25 +30,62 @@ using namespace nigiri::test_data::hrd_timetable;
 using namespace std::chrono;
 
 TEST(all_to_all_queries, one_to_all) {
+    auto bars = utl::global_progress_bars{false};
+    auto progress_tracker = utl::activate_progress_tracker("aachen test");
+
+    timetable tt;
+    tt.date_range_ = test_full_period();
+    register_special_stations(tt);
+    constexpr auto const src = source_idx_t{0U};
+    load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jc/uni/thesis/data/input/aachen"}, tt);
+    finalize(tt);
+
+    //auto const results = tripbased_onetoall(tt, "0001573",
+    /*
+    auto const results = tripbased_onetoall(tt, "0001008",
+                                          interval{unixtime_t{sys_days{June / 12 / 2023}} + 3h,
+                                                   unixtime_t{sys_days{June / 07 / 2024}} + 23h});
+    */
+    auto const results = tripbased_onetoall(tt, "0001008",
+                                            interval{unixtime_t{sys_days{June / 12 / 2023}} + 3h,
+                                                     unixtime_t{sys_days{June / 12 / 2023}} + 23h});
+
+    int count = 0;
+    for(const auto& element : results) {
+        count += element.size();
+    }
+    TBDL << "Number of trips in total: " << count << "\n";
+/*
+#ifndef NDEBUG
+    int i = 0;
+    for(const auto& element : results) {
+        if(element.size()) {
+            TBDL << location_name(tt, location_idx_t{i}) << " results: " << element.size() << "\n";
+            for (auto& j : element) {
+                j.print(std::cout, tt);
+            }
+        }
+        i++;
+    }
+#endif
+*/
+
+    EXPECT_EQ(1, 1);
+}
+
+/*
+TEST(aachen_test, one_to_all) {
     constexpr auto const src = source_idx_t{0U};
     timetable tt;
     tt.date_range_ = full_period();
     register_special_stations(tt);
-    load_timetable(src, loader::hrd::hrd_5_20_26, files_abc(), tt);
+    load_timetable(src, loader::hrd::hrd_5_20_26, loader::fs_dir{"/home/jc/uni/thesis/data/input/aachen"}, tt);
     finalize(tt);
 
-    auto const results = tripbased_onetoall(tt, "0000001",
-                                          interval{unixtime_t{sys_days{March / 30 / 2020}} + 5h,
-                                                   unixtime_t{sys_days{March / 30 / 2020}} + 9h});
-
-/*#ifndef NDEBUG
-    for(int i = 0; i < static_cast<int>(tt.locations_.names_.size()); i++) {
-        TBDL << location_name(tt, location_idx_t{i}) << "\n";
-    }
-#endif*/
-
-
-    //const auto results = tripbased_onetoall(tt);
+    auto const results = tripbased_onetoall(tt, "0001008",
+                                            interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
+                                                     unixtime_t{sys_days{July / 30 / 2023}} + 10h});
 
     EXPECT_EQ(1, 1);
 }
+*/

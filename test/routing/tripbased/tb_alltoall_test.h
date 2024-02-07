@@ -13,16 +13,15 @@
 
 namespace nigiri::test {
 
-    //vecvec<stop_idx_t, vecvec<routing::journey, bitfield_idx_t>
-    vecvec<stop_idx_t, routing::journey> tripbased_onetoall(timetable &tt,
+    std::vector<pareto_set<routing::journey>> tripbased_onetoall(timetable &tt,
                                                             std::string_view from,
                                                             routing::start_time_t time) {
         using algo_t = routing::tripbased::oneToAll_engine;
         using algo_state_t = routing::tripbased::oneToAll_state;
 
         static auto search_state = routing::onetoall_search_state{};
-        routing::tripbased::transfer_set ts;
-        build_transfer_set(tt, ts, 10);
+        routing::tripbased::transfer_set ts{};
+        //build_transfer_set(tt, ts, 10);
         auto algo_state = algo_state_t{tt, ts};
 
         auto const src = source_idx_t{0};
@@ -33,18 +32,9 @@ namespace nigiri::test {
                             0U}}
         };
 
-        routing::onetoall_search<direction::kForward, algo_t>{
+        return *(routing::onetoall_search<direction::kForward, algo_t>{
             tt, nullptr, search_state, algo_state, std::move(q)}
-            .execute();
-
-        //return
-       /*routing::search<direction::kForward, algo_t>{
-                tt, nullptr, search_state, algo_state, std::move(q)}
-                .execute()
-                .journeys_;
-                */
-
-        return vecvec<stop_idx_t, routing::journey>{};
+            .execute().journeys_);
     }
 
     timetable tripbased_alltoall(timetable &tt) {
