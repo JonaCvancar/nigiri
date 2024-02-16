@@ -10,7 +10,7 @@
 #include "nigiri/routing/dijkstra.h"
 #include "nigiri/routing/for_each_meta.h"
 #include "nigiri/routing/get_fastest_direct.h"
-#include "nigiri/routing/journey.h"
+#include "nigiri/routing/journey_bitfield.h"
 #include "nigiri/routing/pareto_set.h"
 #include "nigiri/routing/onetoall_query.h"
 #include "nigiri/routing/start_times.h"
@@ -29,7 +29,7 @@ namespace nigiri::routing {
         ~onetoall_search_state() = default;
 
         std::vector<start> starts_;
-        std::vector< pareto_set<journey> > results_;
+        std::vector< pareto_set<journey_bitfield> > results_;
     };
 
     struct onetoall_search_stats {
@@ -39,7 +39,7 @@ namespace nigiri::routing {
 
     template <typename AlgoStats>
     struct routing_result {
-        std::vector< pareto_set<journey>> const* journeys_{nullptr};
+        std::vector< pareto_set<journey_bitfield>> const* journeys_{nullptr};
         interval<unixtime_t> interval_;
         onetoall_search_stats search_stats_;
         AlgoStats algo_stats_;
@@ -53,6 +53,9 @@ namespace nigiri::routing {
         static constexpr auto const kBwd = (SearchDir == direction::kBackward);
 
         Algo init(algo_state_t& algo_state) {
+          TBDL << "day_idx" << std::chrono::duration_cast<date::days>(
+                                   search_interval_.from_ - tt_.internal_interval().from_)
+                                   .count() << "\n";
             return Algo{
                     tt_,
                     rtt_,

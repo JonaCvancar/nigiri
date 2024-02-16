@@ -14,7 +14,7 @@ namespace nigiri::routing::tripbased {
                    stop_idx_ <= o.stop_idx_ && n_transfers_ <= o.n_transfers_;
         }
         transport_segment_idx_t transport_segment_idx_;
-        bitfield_idx_t operating_days_;
+        bitfield operating_days_;
         std::uint16_t stop_idx_;
         std::uint16_t n_transfers_;
     };
@@ -28,13 +28,13 @@ namespace nigiri::routing::tripbased {
         void reset();
 
         void update(transport_segment_idx_t const,
-                    bitfield_idx_t const operating_days,
+                    bitfield const operating_days,
                     std::uint16_t const stop_idx,
                     std::uint16_t const n_transfers);
 
-        std::uint16_t query(transport_segment_idx_t const,
+        std::vector<std::tuple<std::uint16_t, bitfield>> query(transport_segment_idx_t const,
                             std::uint16_t const n_transfers,
-                            std::uint16_t const day);
+                            bitfield const operating_days);
 
         timetable const& tt_;
 

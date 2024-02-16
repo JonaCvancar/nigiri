@@ -1,4 +1,4 @@
-#include "nigiri/routing/journey.h"
+#include "nigiri/routing/journey_bitfield.h"
 
 #include "utl/enumerate.h"
 #include "utl/overloaded.h"
@@ -7,9 +7,11 @@
 #include "nigiri/rt/frun.h"
 #include "nigiri/timetable.h"
 
+#include "nigiri/routing/tripbased/dbg.h"
+
 namespace nigiri::routing {
 
-void journey::leg::print(std::ostream& out,
+void journey_bitfield::leg::print(std::ostream& out,
                          timetable const& tt,
                          rt_timetable const* rtt,
                          unsigned const n_indent,
@@ -38,13 +40,13 @@ void journey::leg::print(std::ostream& out,
       uses_);
 }
 
-void journey::print(std::ostream& out,
+void journey_bitfield::print(std::ostream& out,
                     timetable const& tt,
                     rt_timetable const* rtt,
                     bool const debug) const {
   if (legs_.empty()) {
     out << "no legs [start_time=" << start_time_ << ", dest_time=" << dest_time_
-        << ", transfers=" << static_cast<int>(transfers_) << "\n";
+        << ", transfers=" << static_cast<int>(transfers_) << ", dest_stop=" << tripbased::location_name(tt, dest_) << "\nOperating Days: " << bitfield_ << "\n";
     return;
   }
 

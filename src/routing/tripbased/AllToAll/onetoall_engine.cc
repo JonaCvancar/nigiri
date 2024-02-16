@@ -1,7 +1,7 @@
 #include <ranges>
 
 #include "nigiri/routing/for_each_meta.h"
-#include "nigiri/routing/journey.h"
+#include "nigiri/routing/journey_bitfield.h"
 #include "nigiri/routing/tripbased/dbg.h"
 #include "nigiri/routing/tripbased/settings.h"
 
@@ -29,7 +29,7 @@ oneToAll_engine::oneToAll_engine(timetable const& tt,
 void oneToAll_engine::execute(unixtime_t const start_time,
                               std::uint8_t const max_transfers,
                               unixtime_t const worst_time_at_dest,
-                              std::vector<pareto_set<journey>>& results
+                              std::vector<pareto_set<journey_bitfield>>& results
 ) {
     (void)results;
 
@@ -69,7 +69,7 @@ void oneToAll_engine::execute(unixtime_t const start_time,
 
 void oneToAll_engine::handle_segment(unixtime_t const start_time,
                                      unixtime_t const worst_time_at_dest,
-                                     std::vector<pareto_set<journey>>& results,
+                                     std::vector<pareto_set<journey_bitfield>>& results,
                                      std::uint8_t const n,
                                      queue_idx_t const q_cur) {
     // the current transport segment
@@ -78,8 +78,6 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
 #ifndef NDEBUG
     TBDL << "Examining segment: ";
     state_.q_n_.print(std::cout, q_cur);
-
-    TBDL << "Length of route: " << tt_.route_location_seq_[tt_.transport_route_[transport_idx(seg.transport_segment_idx_)]].size() << "\n";
 #endif
 
     // departure time at the start of the transport segment
@@ -104,7 +102,6 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
     auto const seg_route_idx = tt_.transport_route_[seg.get_transport_idx()];
 
     for(stop_idx_t i = seg.get_stop_idx_start() + 1U; i <= seg.get_stop_idx_end(); ++i) {
-
         auto const travel_time_seg =
                 tt_.event_mam(seg.get_transport_idx(), i, event_type::kArr).count() - tau_dep_t_b;
         auto const tau_d_temp = tau_d + travel_time_seg;
@@ -112,75 +109,80 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         auto const location_id = stop_temp.location_idx();
 
         auto const t_cur = tt_.to_unixtime(base_, minutes_after_midnight_t{tau_d_temp});
-        if (t_cur < state_.t_min_[location_id.v_][n] && t_cur < worst_time_at_dest && stop_temp.out_allowed()) {
+
+        if( (t_cur > worst_time_at_dest) && (t_cur < state_.t_min_[location_id.v_][n]) ) {
+          ++stats_.n_segments_pruned_;
+          break;
+        }
+
+        if (stop_temp.out_allowed()) {
+#ifndef NDEBUG
+          TBDL << "segment reaches stop " << i << " at "
+               << dhhmm(tau_d_temp) << "\n";
+#endif
             state_.t_min_[location_id.v_][n] = t_cur;
             // add journey without reconstructing yet
-            journey j{};
+            journey_bitfield j{};
             j.start_time_ = start_time;
             j.dest_time_ = t_cur;
             j.dest_ = location_id;
             j.transfers_ = n;
-            j.bitfield_idx_ = seg.operating_days_;
+            j.bitfield_ = seg.operating_days_;
             // add journey to pareto set (removes dominated entries)
 #ifndef NDEBUG
             /*
             TBDL << "updating pareto set with new journey: ";
             j.print(std::cout, tt_);
             */
-            auto [non_dominated, begin, end] = results[location_id.v_].add(std::move(j));
+            auto [non_dominated, begin, end] = results[location_id.v_].add_bitfield(std::move(j));
             /*if (non_dominated) {
                 TBDL << "new journey ending with this segment is non-dominated\n";
             } else {
                 TBDL << "new journey ending with this segment is dominated\n";
             }*/
 #else
-            results[location_id.v_].add(std::move(j));
+            results[location_id.v_].add_bitfield(std::move(j));
+            /*
             if(results[location_id.v_].size() > 1) {
                 for(auto& element : results[location_id.v_]) {
                     element.print(std::cout, tt_);
                 }
             }
+             */
 
             ++stats_.n_journeys_found_;
 #endif
         }
 #ifndef NDEBUG
         else {
-            if(t_cur < state_.t_min_[location_id.v_][n]) {
-                TBDL << "Faster trip exists.\n";
-            } else if(t_cur < worst_time_at_dest) {
-                TBDL << "Trip exceeds time limit.\n";
-            } else if(stop_temp.out_allowed()) {
-                TBDL << "Not allowed to get out at this stop.\n";
-            }
+          TBDL << "Not allowed to get out at this stop.\n";
         }
 #endif
 
-        if(state_.ts_.n_transfers_ > 0) {
 
+        if(state_.ts_.n_transfers_ > 0) {
             auto const& transfers = state_.ts_.data_.at(seg.get_transport_idx().v_, i);
             for(auto const& transfer : transfers) {
-                auto const& theta_seg = tt_.bitfields_[seg.operating_days_];
                 auto const& theta = tt_.bitfields_[transfer.get_bitfield_idx()];
-                if (theta.test(static_cast<std::size_t>(d_seg))) {
+                //if (theta.test(static_cast<std::size_t>(d_seg))) {
                     auto const tau_arr_t_i =
                             tt_.event_mam(seg.get_transport_idx(), i, event_type::kArr)
                                     .count();
-                    // departure time at end location of transfer
+                    // departure time at end location of transferl
                     auto const tau_dep_u_j =
                             tt_.event_mam(transfer.get_transport_idx_to(),
                                           transfer.stop_idx_to_, event_type::kDep)
                                     .count();
 
-                    auto const d_tr = d_seg + tau_arr_t_i / 1440 - tau_dep_u_j / 1440 +
+                    auto const d_tr = tau_arr_t_i / 1440 - tau_dep_u_j / 1440 +
                                       transfer.passes_midnight_;
 
-                    bitfield_idx_t const& new_operating_days;
-                    if(transfer.passes_midnight_) {
-                        tt_.
-                        new_operating_days = theta_seg & (theta << 1);
-                    } else {
 
+                    bitfield new_operating_days;
+                    if(transfer.passes_midnight_) {
+                        new_operating_days = seg.operating_days_ & (theta << 1);
+                    } else {
+                        new_operating_days = seg.operating_days_ & theta;
                     }
 #ifndef NDEBUG
                     TBDL << "Found a transfer to transport "
@@ -210,58 +212,10 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
                                         transfer.get_stop_idx_to(),
                                         n + 1U,
                                         q_cur,
-                                        transfer.get_bitfield_idx());
-                }
+                                        new_operating_days);
+                //}
             }
         }
-    }
-
-
-    // the time it takes to travel to the next stop of the transport segment
-    auto const travel_time_next =
-            tt_.event_mam(seg.get_transport_idx(), seg.stop_idx_start_ + 1,
-                          event_type::kArr)
-                    .count() -
-            tau_dep_t_b;
-
-    // the unix time at the next stop of the transport segment
-    auto const unix_time_next = tt_.to_unixtime(
-            base_, minutes_after_midnight_t{tau_d + travel_time_next});
-
-    bool no_prune = unix_time_next < worst_time_at_dest;
-
-    // check if arrival at next stop of the segment would already be dominated
-    // ToDo update to new algorithm
-    //no_prune = no_prune && (unix_time_next < state_.t_min_[n]);
-
-    // transfer out of current transport segment?
-    if (no_prune) {
-#ifndef NDEBUG
-        TBDL << "Time at next stop of segment is viable\n";
-#endif
-
-        // iterate stops of the current transport segment
-        for (stop_idx_t i = seg.get_stop_idx_start() + 1U;
-             i <= seg.get_stop_idx_end(); ++i) {
-#ifndef NDEBUG
-            TBDL << "Arrival at stop " << i << ": "
-                 << location_name(
-                         tt_,
-                         stop{tt_.route_location_seq_
-                              [tt_.transport_route_[seg.get_transport_idx()]][i]}
-                                 .location_idx())
-                 << " at "
-                 << unix_dhhmm(
-                         tt_, tt_.to_unixtime(seg.get_transport_day(base_),
-                                              tt_.event_mam(seg.get_transport_idx(), i,
-                                                            event_type::kArr)
-                                                      .as_duration()))
-                 << ", processing transfers...\n";
-#endif
-
-        }
-    } else {
-        ++stats_.n_segments_pruned_;
     }
 }
 
@@ -309,17 +263,14 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
 
     // iterate routes at target stop of footpath
     for (auto const route_idx : tt_.location_routes_[fp.target()]) {
-/*#ifndef NDEBUG
-        TBDL << "Route " << route_idx << "\n";
-#endif*/
         // iterate stop sequence of route, skip last stop
         for (std::uint16_t i = 0U; i < tt_.route_location_seq_[route_idx].size() - 1; ++i) {
             auto const route_stop = stop{tt_.route_location_seq_[route_idx][i]};
             if (route_stop.location_idx() == fp.target() && route_stop.in_allowed()) {
-#ifndef NDEBUG
+/*#ifndef NDEBUG
                 TBDL "Route " << route_idx << " serves " << location_name(tt_, fp.target())
                               << " at stop idx = " << i << "\n";
-#endif
+#endif*/
                 // departure times of this route at this q
                 auto const event_times =
                         tt_.event_times_at_stop(route_idx, i, event_type::kDep);
@@ -337,6 +288,7 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
                     tau_dep_t_i = event_times.begin();
                 }
                 // iterate departures until maximum waiting time is reached
+                bitfield beta_l;
                 while (sigma <= 1) {
                     // shift amount due to travel time of transport
                     std::int32_t const sigma_t = tau_dep_t_i->days();
@@ -350,20 +302,19 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
                     // bitfield of the connecting transport
                     auto const& beta_t = tt_.bitfields_[tt_.transport_traffic_days_[t]];
 
-                    if (beta_t.test(static_cast<std::size_t>(d_seg))) {
+                    auto const& beta_l_new = (beta_t << static_cast<size_t>(sigma - sigma_t)) & (~beta_l);
+                    beta_l |= (beta_t << static_cast<size_t>(sigma - sigma_t));
+                    //if (beta_t.test(static_cast<std::size_t>(d_seg))) {
                         // enqueue segment if matching bit is found
-#ifndef NDEBUG
-                        TBDL << "Attempting to enqueue a segment of transport " << t << ": "
-                             << tt_.transport_name(t) << ", departing at "
-                             << unix_dhhmm(tt_, tt_.to_unixtime(day_idx_t{d_seg},
-                                                                tau_dep_t_i->as_duration()))
-                             << "\n";
-#endif
-
-                        state_.q_n_.enqueue(static_cast<std::uint16_t>(d_seg), t, i, 0U,
-                                            TRANSFERRED_FROM_NULL, tt_.transport_traffic_days_[t]);
-                        break;
+                    if(beta_l_new > bitfield()) {
+                      //TBDL << "Found new operating days\n";
+                      //ToDo which d_seg? only sigma or d_seg, additional parameter sigma? for shift of next segment?
+                      state_.q_n_.enqueue(static_cast<std::uint16_t>(d_seg), t,
+                                          i, 0U, TRANSFERRED_FROM_NULL,
+                                          beta_l_new);
                     }
+                    //break;
+                    //}
                     // passing midnight?
                     if (tau_dep_t_i + 1 == event_times.end()) {
                         ++sigma;

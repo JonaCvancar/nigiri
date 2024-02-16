@@ -1,6 +1,6 @@
 #pragma once
 
-#include "nigiri/routing/journey.h"
+#include "nigiri/routing/journey_bitfield.h"
 #include "nigiri/routing/onetoall_search.h"
 #include "nigiri/timetable.h"
 
@@ -13,7 +13,7 @@
 
 namespace nigiri::test {
 
-    std::vector<pareto_set<routing::journey>> tripbased_onetoall(timetable &tt,
+    std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall(timetable &tt,
                                                             std::string_view from,
                                                             routing::start_time_t time) {
         using algo_t = routing::tripbased::oneToAll_engine;

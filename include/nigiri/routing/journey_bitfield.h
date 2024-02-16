@@ -20,7 +20,7 @@ struct rt_timetable;
 
 namespace nigiri::routing {
 
-struct journey {
+struct journey_bitfield {
   struct run_enter_exit {
     run_enter_exit(rt::run r, stop_idx_t const a, stop_idx_t const b)
         : r_{std::move(r)},
@@ -53,48 +53,55 @@ struct journey {
     location_idx_t from_, to_;
     unixtime_t dep_time_, arr_time_;
     std::variant<run_enter_exit, footpath, offset> uses_;
+    bitfield bitfield_;
   };
 
-#ifdef TB_MIN_WALK
-  bool dominates(journey const& o) const {
-    if (start_time_ <= dest_time_) {
-      return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
-             dest_time_ <= o.dest_time_ && time_walk_ <= o.time_walk_;
+  // return non-dominated days of o; dominated days of this
+  std::tuple<bitfield, bitfield> dominates(journey_bitfield const& o) const {
+    bitfield different_days{};
+    bitfield same_days = (o.bitfield_ & bitfield_);
+    if( same_days == bitfield() ) {
+      return std::make_tuple(o.bitfield_, bitfield_);
     } else {
-      return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
-             dest_time_ >= o.dest_time_ && time_walk_ <= o.time_walk_;
+      different_days = o.bitfield_ & ~bitfield_;
+    }
+
+    bool result = false;
+    if (start_time_ <= dest_time_) {
+      if(transfers_ < o.transfers_) {
+        result = start_time_ >= o.start_time_ &&
+                 dest_time_ <= o.dest_time_;
+      } else if(start_time_ > o.start_time_) {
+        result = transfers_ <= o.transfers_ &&
+                 dest_time_ <= o.dest_time_;
+      } else if(dest_time_ < o.dest_time_) {
+        result = transfers_ <= o.transfers_ &&
+                 start_time_ >= o.start_time_;
+      }
+      /*
+      result = transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
+               dest_time_ <= o.dest_time_;
+               */
+    } else {
+      result = transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
+               dest_time_ >= o.dest_time_;
+    }
+
+    if(result) {
+      return std::make_tuple(different_days, bitfield_);
+    } else {
+      return std::make_tuple(o.bitfield_, bitfield_ & ~same_days);
     }
   }
-#elifdef TB_TRANSFER_CLASS
-  bool dominates(journey const& o) const {
-    if (start_time_ <= dest_time_) {
-      return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
-             dest_time_ <= o.dest_time_ &&
-             transfer_class_max_ <= o.transfer_class_max_ &&
-             transfer_class_sum_ <= o.transfer_class_sum_;
-    } else {
-      return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
-             dest_time_ >= o.dest_time_ &&
-             transfer_class_max_ <= o.transfer_class_max_ &&
-             transfer_class_sum_ <= o.transfer_class_sum_;
-    }
-  }
-#else
-  bool dominates(journey const& o) const {
-    if (start_time_ <= dest_time_) {
-      return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
-             dest_time_ <= o.dest_time_;
-    } else {
-      return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
-             dest_time_ >= o.dest_time_;
-    }
-  }
-#endif
 
   void add(leg&& l) { legs_.emplace_back(l); }
 
   duration_t travel_time() const {
     return duration_t{std::abs((dest_time_ - start_time_).count())};
+  }
+
+  void set_bitfield(bitfield bf) {
+    bitfield_ = bf;
   }
 
   void print(std::ostream&,
@@ -107,12 +114,7 @@ struct journey {
   unixtime_t dest_time_;
   location_idx_t dest_;
   std::uint8_t transfers_{0U};
-#ifdef TB_MIN_WALK
-  std::uint16_t time_walk_{0U};
-#elifdef TB_TRANSFER_CLASS
-  std::uint8_t transfer_class_max_{0U};
-  std::uint8_t transfer_class_sum_{0U};
-#endif
+  bitfield bitfield_;
 };
 
 }  // namespace nigiri::routing

@@ -17,7 +17,7 @@ namespace nigiri::routing::tripbased {
                           stop_idx_t stop_idx_start,
                           stop_idx_t stop_idx_end,
                           std::uint32_t transferred_from,
-                          bitfield_idx_t operating_days)
+                          bitfield operating_days)
                 : transport_segment_idx_(transport_segment_idx),
                   stop_idx_start_(stop_idx_start),
                   stop_idx_end_(stop_idx_end),
@@ -50,7 +50,7 @@ namespace nigiri::routing::tripbased {
         std::uint32_t stop_idx_end_ : STOP_IDX_BITS;
 
         // Operating Days of trip segment
-        bitfield_idx_t operating_days_;
+        bitfield operating_days_;
 
         // queue index of the segment from which we transferred to this segment
         std::uint32_t transferred_from_;

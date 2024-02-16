@@ -12,7 +12,7 @@
 //#include "nigiri/routing/tripbased/transfer_set.h"
 //#include "nigiri/timetable.h"
 
-#include "nigiri/routing/journey.h"
+#include "nigiri/routing/journey_bitfield.h"
 #include "nigiri/routing/pareto_set.h"
 #include "nigiri/routing/query.h"
 #include "nigiri/routing/tripbased/dbg.h"
@@ -77,7 +77,7 @@ namespace nigiri::routing::tripbased {
         void execute(unixtime_t const start_time,
                      std::uint8_t const max_transfers,
                      unixtime_t const worst_time_at_dest,
-                     std::vector<pareto_set<journey>>& results
+                     std::vector<pareto_set<journey_bitfield>>& results
                      );
 
     private:
@@ -89,18 +89,18 @@ namespace nigiri::routing::tripbased {
 
         void handle_segment(unixtime_t const start_time,
                             unixtime_t const worst_time_at_dest,
-                            std::vector<pareto_set<journey>>& results,
+                            std::vector<pareto_set<journey_bitfield>>& results,
                             std::uint8_t const n,
                             queue_idx_t const q_cur);
 
-        void add_segment_leg(journey& j, transport_segment const& seg) const;
+        void add_segment_leg(journey_bitfield& j, transport_segment const& seg) const;
 
         // reconstruct the transfer from the given segment to the last journey leg
         // returns the stop idx at which the segment is exited
         std::optional<transport_segment> reconstruct_transfer(
-                journey& j, transport_segment const& seg_next, std::uint8_t n) const;
+                journey_bitfield& j, transport_segment const& seg_next, std::uint8_t n) const;
 
-        void add_initial_footpath(query const& q, journey& j) const;
+        void add_initial_footpath(query const& q, journey_bitfield& j) const;
 
         bool is_start_location(query const&, location_idx_t const) const;
 
