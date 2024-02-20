@@ -29,7 +29,7 @@ using namespace nigiri::routing::tripbased::test;
 using namespace nigiri::test_data::hrd_timetable;
 using namespace std::chrono;
 
-
+/*
 TEST(all_to_all_queries, one_to_all) {
     auto bars = utl::global_progress_bars{false};
     auto progress_tracker = utl::activate_progress_tracker("aachen test");
@@ -72,7 +72,7 @@ TEST(all_to_all_queries, one_to_all) {
 
     EXPECT_EQ(1, 1);
 }
-
+*/
 
 /*
 TEST(aachen_test, one_to_all) {
@@ -91,7 +91,7 @@ TEST(aachen_test, one_to_all) {
 }
 */
 
-/*
+
 TEST(profile_query, files_abc) {
   constexpr auto const src = source_idx_t{0U};
   timetable tt;
@@ -111,6 +111,22 @@ TEST(profile_query, files_abc) {
   }
   TBDL << "Number of trips in total: " << count << "\n";
 
+  int i = 0;
+  count = 0;
+  for(const auto& element : results) {
+    if (count >= 10) {
+      break;
+    }
+    if (element.size()) {
+      TBDL << location_name(tt, location_idx_t{i}) << " (" << i
+           << ") results: " << element.size() << "\n";
+      for (auto& j : element) {
+        j.print(std::cout, tt);
+      }
+      count++;
+    }
+    i++;
+  }
+
   EXPECT_EQ(1,1);
 }
- */

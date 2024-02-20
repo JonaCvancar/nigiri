@@ -673,7 +673,7 @@ TEST(profile_query, files_abc) {
   auto const results =
       tripbased_search(tt, "0000001", "0000003",
                        interval{unixtime_t{sys_days{March / 30 / 2020}} + 5h,
-                                unixtime_t{sys_days{March / 30 / 2020}} + 7h});
+                                unixtime_t{sys_days{March / 30 / 2020}} + 6h});
 
 #ifdef TB_TRANSFER_CLASS
   EXPECT_EQ(4, results.size());

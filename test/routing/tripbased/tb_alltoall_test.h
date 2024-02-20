@@ -20,8 +20,8 @@ namespace nigiri::test {
         using algo_state_t = routing::tripbased::oneToAll_state;
 
         static auto search_state = routing::onetoall_search_state{};
-        routing::tripbased::transfer_set ts{};
-        //build_transfer_set(tt, ts, 10);
+        routing::tripbased::transfer_set ts;
+        build_transfer_set(tt, ts, 10);
         auto algo_state = algo_state_t{tt, ts};
 
         auto const src = source_idx_t{0};
