@@ -53,9 +53,6 @@ namespace nigiri::routing {
         static constexpr auto const kBwd = (SearchDir == direction::kBackward);
 
         Algo init(algo_state_t& algo_state) {
-          TBDL << "day_idx" << std::chrono::duration_cast<date::days>(
-                                   search_interval_.from_ - tt_.internal_interval().from_)
-                                   .count() << "\n";
             return Algo{
                     tt_,
                     rtt_,
@@ -172,17 +169,24 @@ namespace nigiri::routing {
                 ++stats_.search_iterations_;
             }
 
-            /*
+
             if (is_pretrip()) {
-                utl::erase_if(state_.results_, [&](journey const& j) {
-                    return !search_interval_.contains(j.start_time_) ||
-                           j.travel_time() > kMaxTravelTime;
+              for(auto& stop : state_.results_) {
+                TBDL << "Results before: " << stop.size() << "\n";
+                utl::erase_if(stop, [&](journey_bitfield const& j) {
+                  return !search_interval_.contains(j.start_time_) ||
+                         j.travel_time() > kMaxTravelTime;
                 });
-                utl::sort(state_.results_, [](journey const& a, journey const& b) {
-                    return a.start_time_ < b.start_time_;
+                utl::sort(stop, [](journey_bitfield const& a, journey_bitfield const& b) {
+                  return a.start_time_ < b.start_time_;
                 });
+                TBDL << "Results after: " << stop.size() << "\n";
+              }
             }
-            */
+
+            for(auto& stop : state_.results_) {
+              TBDL << "Actual results size: " << stop.size() << "\n";
+            }
 
             return {.journeys_ = &state_.results_,
                     .interval_ = search_interval_,
@@ -223,7 +227,7 @@ namespace nigiri::routing {
                               bool const add_ontrip) {
             get_starts(SearchDir, tt_, rtt_, start_interval, q_.start_,
                        q_.start_match_mode_, q_.use_start_footpaths_, state_.starts_,
-                       add_ontrip);
+                       add_ontrip, true);
         }
 
         void remove_ontrip_results() {

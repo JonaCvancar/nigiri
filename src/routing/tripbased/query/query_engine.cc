@@ -121,9 +121,6 @@ void query_engine::execute(unixtime_t const start_time,
 #endif
   // init Q_0
   for (auto const& qs : state_.query_starts_) {
-#ifndef NDEBUG
-      TBDL << "State query starts size: " << state_.query_starts_.size() << "\n";
-#endif
     handle_start(qs);
   }
 
@@ -475,7 +472,7 @@ void query_engine::handle_segment(unixtime_t const start_time,
   // departure time at the start of the transport segment
   auto const tau_dep_t_b = tt_.event_mam(seg.get_transport_idx(),
                                          seg.stop_idx_start_, event_type::kDep)
-                               .count();
+      .count();
   auto const tau_dep_t_b_d =
       tt_.event_mam(seg.get_transport_idx(), seg.stop_idx_start_,
                     event_type::kDep)
@@ -549,7 +546,7 @@ void query_engine::handle_segment(unixtime_t const start_time,
         j.start_time_ = start_time;
         j.dest_time_ = t_cur;
         j.dest_ = stop{tt_.route_location_seq_[seg_route_idx][le.stop_idx_]}
-                      .location_idx();
+            .location_idx();
         j.transfers_ = n;
         // add journey to pareto set (removes dominated entries)
 #ifndef NDEBUG
@@ -638,16 +635,16 @@ void query_engine::handle_segment(unixtime_t const start_time,
 #ifndef NDEBUG
       TBDL << "Arrival at stop " << i << ": "
            << location_name(
-                  tt_,
-                  stop{tt_.route_location_seq_
-                           [tt_.transport_route_[seg.get_transport_idx()]][i]}
-                      .location_idx())
+               tt_,
+               stop{tt_.route_location_seq_
+                    [tt_.transport_route_[seg.get_transport_idx()]][i]}
+                   .location_idx())
            << " at "
            << unix_dhhmm(
-                  tt_, tt_.to_unixtime(seg.get_transport_day(base_),
-                                       tt_.event_mam(seg.get_transport_idx(), i,
-                                                     event_type::kArr)
-                                           .as_duration()))
+               tt_, tt_.to_unixtime(seg.get_transport_day(base_),
+                                    tt_.event_mam(seg.get_transport_idx(), i,
+                                                  event_type::kArr)
+                                        .as_duration()))
            << ", processing transfers...\n";
 #endif
 
@@ -680,9 +677,9 @@ void query_engine::handle_segment(unixtime_t const start_time,
                << " at its stop " << transfer.stop_idx_to_ << ": "
                << location_name(tt_,
                                 stop{tt_.route_location_seq_
-                                         [tt_.transport_route_
-                                              [transfer.get_transport_idx_to()]]
-                                         [transfer.get_stop_idx_to()]}
+                                     [tt_.transport_route_
+                                    [transfer.get_transport_idx_to()]]
+                                     [transfer.get_stop_idx_to()]}
                                     .location_idx())
                << ", departing at "
                << unix_dhhmm(tt_,

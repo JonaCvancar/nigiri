@@ -47,21 +47,22 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
               end_.emplace_back(segments_.size());
             }
 
-            // add transport segment
-            segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
-                                   transferred_from, std::get<1>(tuple));
+            if(std::get<1>(tuple) > bitfield()) {
+              // add transport segment
+              segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
+                                     transferred_from, std::get<1>(tuple));
 #ifndef NDEBUG
-            TBDL << "Enqueued transport segment: ";
-            print(std::cout, static_cast<queue_idx_t>(segments_.size() - 1));
+              TBDL << "Enqueued transport segment: ";
+              print(std::cout, static_cast<queue_idx_t>(segments_.size() - 1));
 #endif
+              // increment index
+              ++end_[n_transfers];
 
-            // increment index
-            ++end_[n_transfers];
-
-            // update reached
-            r_.update(transport_segment_idx, std::get<1>(tuple), stop_idx,
-                      n_transfers);
-            return true;
+              // update reached
+              r_.update(transport_segment_idx, std::get<1>(tuple), stop_idx,
+                        n_transfers);
+              return true;
+            }
           }
         }
     }

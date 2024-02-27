@@ -34,6 +34,22 @@ struct pareto_set {
   }
 
   std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
+    auto n_removed = std::size_t{0};
+    for (auto i = 0U; i < els_.size(); ++i) {
+      if (els_[i].dominates(el)) {
+        return {false, end(), std::next(begin(), i)};
+      }
+      if (el.dominates(els_[i])) {
+        n_removed++;
+        continue;
+      }
+      els_[i - n_removed] = els_[i];
+    }
+    els_.resize(els_.size() - n_removed + 1);
+    els_.back() = std::move(el);
+    return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+            end()};
+    /*
     bitfield non_dominated_days{};
     auto n_removed = std::size_t{0};
     for (auto i = 0U; i < els_.size(); ++i) {
@@ -55,6 +71,7 @@ struct pareto_set {
     els_.back() = std::move(el);
     return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
             end()};
+            */
   }
 
   friend const_iterator begin(pareto_set const& s) { return s.begin(); }

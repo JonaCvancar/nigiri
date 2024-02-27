@@ -57,7 +57,16 @@ struct journey_bitfield {
   };
 
   // return non-dominated days of o; dominated days of this
-  std::tuple<bitfield, bitfield> dominates(journey_bitfield const& o) const {
+  //std::tuple<bitfield, bitfield> dominates(journey_bitfield const& o) const {
+  bool dominates(journey_bitfield const& o) const {
+    if (start_time_ <= dest_time_) {
+      return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
+             dest_time_ <= o.dest_time_;
+    } else {
+      return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
+             dest_time_ >= o.dest_time_;
+    }
+    /*
     bitfield different_days{};
     bitfield same_days = (o.bitfield_ & bitfield_);
     if( same_days == bitfield() ) {
@@ -66,32 +75,39 @@ struct journey_bitfield {
       different_days = o.bitfield_ & ~bitfield_;
     }
 
+
     bool result = false;
     if (start_time_ <= dest_time_) {
-      if(transfers_ < o.transfers_) {
-        result = start_time_ >= o.start_time_ &&
-                 dest_time_ <= o.dest_time_;
-      } else if(start_time_ > o.start_time_) {
-        result = transfers_ <= o.transfers_ &&
-                 dest_time_ <= o.dest_time_;
-      } else if(dest_time_ < o.dest_time_) {
-        result = transfers_ <= o.transfers_ &&
-                 start_time_ >= o.start_time_;
-      }
-      /*
       result = transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
                dest_time_ <= o.dest_time_;
-               */
     } else {
       result = transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
                dest_time_ >= o.dest_time_;
     }
 
-    if(result) {
-      return std::make_tuple(different_days, bitfield_);
+    bool result_o = false;
+    if (start_time_ <= dest_time_) {
+      result_o = o.transfers_ <= transfers_ && o.start_time_ >= start_time_ &&
+               o.dest_time_ <= dest_time_;
     } else {
-      return std::make_tuple(o.bitfield_, bitfield_ & ~same_days);
+      result_o = o.transfers_ <= transfers_ && o.start_time_ <= start_time_ &&
+               o.dest_time_ >= dest_time_;
     }
+
+    if(result) {
+      if(result_o) {
+        return std::make_tuple(o.bitfield_, bitfield_);
+      } else {
+        return std::make_tuple(different_days, bitfield_);
+      }
+    } else {
+      if(result_o) {
+        return std::make_tuple(o.bitfield_, bitfield_ & ~same_days);
+      } else {
+        return std::make_tuple(bitfield(), bitfield());
+      }
+    }
+     */
   }
 
   void add(leg&& l) { legs_.emplace_back(l); }

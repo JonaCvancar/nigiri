@@ -9,7 +9,12 @@
 namespace nigiri::routing::tripbased {
 
     struct onetoall_reached_entry {
-        std::tuple<bitfield, bitfield> dominates(onetoall_reached_entry const& o) const {
+
+        //std::tuple<bitfield, bitfield> dominates(onetoall_reached_entry const& o) const {
+        bool dominates(onetoall_reached_entry const& o) const {
+          return transport_segment_idx_ <= o.transport_segment_idx_ &&
+                 stop_idx_ <= o.stop_idx_ && n_transfers_ <= o.n_transfers_;
+          /*
           bitfield different_days{};
           bitfield same_days = (o.bitfield_ & bitfield_);
           if( same_days == bitfield() ) {
@@ -17,6 +22,7 @@ namespace nigiri::routing::tripbased {
           } else {
             different_days = o.bitfield_ & ~bitfield_;
           }
+
 
           bool dominates = false;
           if(transport_segment_idx_ < o.transport_segment_idx_) {
@@ -28,12 +34,17 @@ namespace nigiri::routing::tripbased {
                                           stop_idx_ <= o.stop_idx_;
           }
 
+          bool dominates = transport_segment_idx_ <= o.transport_segment_idx_ &&
+                                        stop_idx_ <= o.stop_idx_ && n_transfers_ <= o.n_transfers_;
+
           if(dominates) {
             return std::make_tuple(different_days, bitfield_);
           } else {
             return std::make_tuple(o.bitfield_, bitfield_ & ~same_days);
           }
+          */
         }
+
         transport_segment_idx_t transport_segment_idx_;
         bitfield bitfield_;
         std::uint16_t stop_idx_;
