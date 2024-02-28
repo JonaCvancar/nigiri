@@ -45,7 +45,7 @@ void journey_bitfield::print(std::ostream& out,
                     rt_timetable const* rtt,
                     bool const debug) const {
   if (legs_.empty()) {
-    out << "no legs [start_time=" << start_time_ << ", dest_time=" << dest_time_
+    out << "no legs [start_time=" << start_time_ << ", dest_time=" << dest_time_ << ", travel_time=" << dest_time_-start_time_
         << ", transfers=" << static_cast<int>(transfers_) << ", dest_stop=" << tripbased::location_name(tt, dest_) << "\nOperating Days: " << bitfield_ << "\n";
     return;
   }

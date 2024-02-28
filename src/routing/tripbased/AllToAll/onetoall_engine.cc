@@ -42,6 +42,11 @@ void oneToAll_engine::execute(unixtime_t const start_time,
   (void)start_time;
 #endif
 
+  TBDL << "Executing with start_time: " << unix_dhhmm(tt_, start_time)
+       << ", max_transfers: " << std::to_string(max_transfers)
+       << ", worst_time_at_dest: " << unix_dhhmm(tt_, worst_time_at_dest)
+       << ", Initializing Q_0...\n";
+
   // init Q_0
   for (auto const& qs : state_.query_starts_) {
     handle_start(qs);
@@ -62,6 +67,12 @@ void oneToAll_engine::execute(unixtime_t const start_time,
     }
   }
 
+  int count = 0;
+  for(const auto& element : results) {
+    count += element.size();
+  }
+
+  TBDL <<  "Finished all segments. Results count: " << count << " Que length: " << state_.q_n_.size() << "\n";
   stats_.n_segments_enqueued_ += state_.q_n_.size();
   stats_.empty_n_ = n;
   stats_.max_transfers_reached_ = n == max_transfers;
@@ -128,28 +139,32 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
       j.dest_ = location_id;
       j.transfers_ = n;
       j.bitfield_ = seg.operating_days_;
-      // add journey to pareto set (removes dominated entries)
-#ifndef NDEBUG
-      TBDL << "updating pareto set with new journey: ";
-      j.print(std::cout, tt_);
-      auto [non_dominated, begin, end] = results[location_id.v_].add_bitfield(std::move(j));
-      if (non_dominated) {
-        TBDL << "new journey ending with this segment is non-dominated\n";
-      } else {
-        TBDL << "new journey ending with this segment is dominated\n";
-      }
-#else
-      results[location_id.v_].add_bitfield(std::move(j));
-            /*
-            if(results[location_id.v_].size() > 1) {
-                for(auto& element : results[location_id.v_]) {
-                    element.print(std::cout, tt_);
-                }
-            }
-             */
 
-            ++stats_.n_journeys_found_;
+      if(j.travel_time() < kMaxTravelTime) {
+// add journey to pareto set (removes dominated entries)
+#ifndef NDEBUG
+        TBDL << "updating pareto set with new journey: ";
+j.print(std::cout, tt_);
+auto [non_dominated, begin, end] =
+    results[location_id.v_].add_bitfield(std::move(j));
+if (non_dominated) {
+  TBDL << "new journey ending with this segment is non-dominated\n";
+} else {
+  TBDL << "new journey ending with this segment is dominated\n";
+}
+#else
+        results[location_id.v_].add_bitfield(std::move(j));
+/*
+if(results[location_id.v_].size() > 1) {
+    for(auto& element : results[location_id.v_]) {
+        element.print(std::cout, tt_);
+    }
+}
+ */
+
+        ++stats_.n_journeys_found_;
 #endif
+      }
     }
 #ifndef NDEBUG
     else {

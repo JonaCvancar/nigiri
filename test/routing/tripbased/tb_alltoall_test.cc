@@ -30,30 +30,50 @@ using namespace nigiri::test_data::hrd_timetable;
 using namespace std::chrono;
 
 /*
-TEST(all_to_all_queries, one_to_all) {
-    auto bars = utl::global_progress_bars{false};
-    auto progress_tracker = utl::activate_progress_tracker("aachen test");
+TEST(all_to_all_queries, one_to_all_fullday) {
+  auto bars = utl::global_progress_bars{false};
+  auto progress_tracker = utl::activate_progress_tracker("aachen test");
 
-    timetable tt;
-    tt.date_range_ = test_full_period();
-    register_special_stations(tt);
-    constexpr auto const src = source_idx_t{0U};
-    load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
-    finalize(tt);
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  constexpr auto const src = source_idx_t{0U};
+  load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
 
-    //auto const results = tripbased_onetoall(tt, "0001573",
-    auto const results = tripbased_onetoall(tt, "0001008",
-                                            interval{unixtime_t{sys_days{June / 12 / 2023}} + 0h,
-                                                     unixtime_t{sys_days{June / 12 / 2023}} + 24h});
+  routing::tripbased::transfer_set ts;
+  build_transfer_set(tt, ts, 10);
+
+  for(location_idx_t i = location_idx_t{0}; i < tt.n_locations(); i++) {
+    // auto const results = tripbased_onetoall(tt, "0001573",
+
+    auto const results = tripbased_onetoall(
+        tt, ts, i,
+        interval{unixtime_t{sys_days{September / 1 / 2023}} + 0h,
+                 unixtime_t{sys_days{September / 1 / 2023}} + 23h});
 
     int count = 0;
-    for(const auto& element : results) {
-        count += element.size();
+    int max_transfers = 0;
+    for (const auto& element : results) {
+      count += element.size();
+      for(const auto& journey : element) {
+        if(journey.transfers_ > max_transfers) {
+          max_transfers = journey.transfers_;
+        }
+      }
     }
-    TBDL << "Number of trips in total: " << count << "\n";
+    TBDL << "Location(" << i << ":" << tt.n_locations() << "): " << location{tt, i} <<  " Number of trips in total: " << count <<
+        " Max Transfers: " << max_transfers << " Results.size: " << sizeof(results) / 1e6 << "MB\n";
+  }
+
+  rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  auto const peak_memory_usage = static_cast<double>(r_usage.ru_maxrss) / 1e6;
+
+  TBDL << "Peak memory usage: " << peak_memory_usage << "GB\n";
 
 #ifndef NDEBUG
-    int i = 0;
+  int i = 0;
     count = 0;
     for(const auto& element : results) {
       if(count >= 10){
@@ -70,28 +90,109 @@ TEST(all_to_all_queries, one_to_all) {
     }
 #endif
 
-    EXPECT_EQ(1, 1);
+  EXPECT_EQ(1, 1);
+}
+*/
+
+
+TEST(aachen_test, one_to_all_3_hours) {
+  auto bars = utl::global_progress_bars{false};
+  auto progress_tracker = utl::activate_progress_tracker("aachen test");
+
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  auto const results = tripbased_onetoall(tt, "0001573",
+  //auto const results = tripbased_onetoall(tt, "0001008",
+                                          interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
+                                                   unixtime_t{sys_days{July / 30 / 2023}} + 10h});
+
+  EXPECT_EQ(1, 1);
+
+  int count = 0;
+  int max_transfers = 0;
+  for(const auto& element : results) {
+    count += element.size();
+    for(const auto& journey : element) {
+      if(journey.transfers_ > max_transfers) {
+        max_transfers = journey.transfers_;
+      }
+    }
+  }
+  TBDL << "Number of trips in total: " << count << " Max Transfers: " << max_transfers << "\n";
+}
+
+
+/*
+TEST(aachen_test, one_to_all_6_hours) {
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  auto const results = tripbased_onetoall(tt, "0001008",
+                                          interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
+                                                   unixtime_t{sys_days{July / 30 / 2023}} + 13h});
+
+  EXPECT_EQ(1, 1);
+
+  int count = 0;
+  for(const auto& element : results) {
+    count += element.size();
+  }
+  TBDL << "Number of trips in total: " << count << "\n";
+}
+
+TEST(aachen_test, one_to_all_9_hours) {
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  auto const results = tripbased_onetoall(tt, "0001008",
+                                          interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
+                                                   unixtime_t{sys_days{July / 30 / 2023}} + 16h});
+
+  EXPECT_EQ(1, 1);
+
+  int count = 0;
+  for(const auto& element : results) {
+    count += element.size();
+  }
+  TBDL << "Number of trips in total: " << count << "\n";
+}
+
+TEST(aachen_test, one_to_all_12_hours) {
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  auto const results = tripbased_onetoall(tt, "0001008",
+                                          interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
+                                                   unixtime_t{sys_days{July / 30 / 2023}} + 19h});
+
+  EXPECT_EQ(1, 1);
+
+  int count = 0;
+  for(const auto& element : results) {
+    count += element.size();
+  }
+  TBDL << "Number of trips in total: " << count << "\n";
 }
 */
 
 /*
-TEST(aachen_test, one_to_all) {
-    constexpr auto const src = source_idx_t{0U};
-    timetable tt;
-    tt.date_range_ = full_period();
-    register_special_stations(tt);
-    load_timetable(src, loader::hrd::hrd_5_20_26, loader::fs_dir{"/home/jc/uni/thesis/data/input/aachen"}, tt);
-    finalize(tt);
-
-    auto const results = tripbased_onetoall(tt, "0001008",
-                                            interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
-                                                     unixtime_t{sys_days{July / 30 / 2023}} + 10h});
-
-    EXPECT_EQ(1, 1);
-}
-*/
-
-
 TEST(profile_query, files_abc) {
   constexpr auto const src = source_idx_t{0U};
   timetable tt;
@@ -103,7 +204,7 @@ TEST(profile_query, files_abc) {
   auto const results =
       tripbased_onetoall(tt, "0000001",
                        interval{unixtime_t{sys_days{March / 30 / 2020}} + 5h,
-                                unixtime_t{sys_days{March / 30 / 2020}} + 7h});
+                                unixtime_t{sys_days{March / 30 / 2020}} + 10h});
 
   int count = 0;
   for(const auto& element : results) {
@@ -130,3 +231,4 @@ TEST(profile_query, files_abc) {
 
   EXPECT_EQ(1,1);
 }
+ */

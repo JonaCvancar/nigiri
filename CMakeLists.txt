@@ -120,11 +120,25 @@ set(nigiri-test-files2
         test/main.cc
         #test/routing/tripbased/tb_query_test.cc
         test/routing/tripbased/test_data.cc
-        test/routing/tripbased/tb_alltoall_test.cc
+        #test/routing/tripbased/tb_alltoall_test.cc
+        test/routing/tripbased/tb_correctness_check.cc
 )
 add_executable(nigiri-test-all ${nigiri-test-files2})
 target_link_libraries(nigiri-test-all nigiri gtest ianatzdb-res nigiri-generated)
 target_compile_options(nigiri-test-all PRIVATE ${nigiri-compile-options})
+
+# --- TEST ---
+#file(GLOB_RECURSE nigiri-test-files test/*.cc)
+set(nigiri-test-files3
+        test/main.cc
+        #test/routing/tripbased/tb_query_test.cc
+        test/routing/tripbased/test_data.cc
+        test/routing/tripbased/tb_alltoall_test.cc
+        #test/routing/tripbased/tb_correctness_check.cc
+)
+add_executable(nigiri-test-all2 ${nigiri-test-files3})
+target_link_libraries(nigiri-test-all2 nigiri gtest ianatzdb-res nigiri-generated)
+target_compile_options(nigiri-test-all2 PRIVATE ${nigiri-compile-options})
 
 # -- PERFORMANCE --
 file(GLOB_RECURSE aachen_files tripbased_performance/aachen.cc)

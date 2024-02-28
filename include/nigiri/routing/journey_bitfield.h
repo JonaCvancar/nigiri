@@ -56,9 +56,11 @@ struct journey_bitfield {
     bitfield bitfield_;
   };
 
-  // return non-dominated days of o; dominated days of this
-  //std::tuple<bitfield, bitfield> dominates(journey_bitfield const& o) const {
   bool dominates(journey_bitfield const& o) const {
+    if( (bitfield_ & o.bitfield_) > bitfield() ) {
+      return false;
+    }
+
     if (start_time_ <= dest_time_) {
       return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
              dest_time_ <= o.dest_time_;
@@ -66,48 +68,6 @@ struct journey_bitfield {
       return transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
              dest_time_ >= o.dest_time_;
     }
-    /*
-    bitfield different_days{};
-    bitfield same_days = (o.bitfield_ & bitfield_);
-    if( same_days == bitfield() ) {
-      return std::make_tuple(o.bitfield_, bitfield_);
-    } else {
-      different_days = o.bitfield_ & ~bitfield_;
-    }
-
-
-    bool result = false;
-    if (start_time_ <= dest_time_) {
-      result = transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
-               dest_time_ <= o.dest_time_;
-    } else {
-      result = transfers_ <= o.transfers_ && start_time_ <= o.start_time_ &&
-               dest_time_ >= o.dest_time_;
-    }
-
-    bool result_o = false;
-    if (start_time_ <= dest_time_) {
-      result_o = o.transfers_ <= transfers_ && o.start_time_ >= start_time_ &&
-               o.dest_time_ <= dest_time_;
-    } else {
-      result_o = o.transfers_ <= transfers_ && o.start_time_ <= start_time_ &&
-               o.dest_time_ >= dest_time_;
-    }
-
-    if(result) {
-      if(result_o) {
-        return std::make_tuple(o.bitfield_, bitfield_);
-      } else {
-        return std::make_tuple(different_days, bitfield_);
-      }
-    } else {
-      if(result_o) {
-        return std::make_tuple(o.bitfield_, bitfield_ & ~same_days);
-      } else {
-        return std::make_tuple(bitfield(), bitfield());
-      }
-    }
-     */
   }
 
   void add(leg&& l) { legs_.emplace_back(l); }

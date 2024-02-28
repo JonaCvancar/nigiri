@@ -37,11 +37,19 @@ struct pareto_set {
     auto n_removed = std::size_t{0};
     for (auto i = 0U; i < els_.size(); ++i) {
       if (els_[i].dominates(el)) {
-        return {false, end(), std::next(begin(), i)};
+        if( (el.bitfield_ & ~els_[i].bitfield_) > bitfield()) {
+          el.bitfield_ = el.bitfield_ & ~els_[i].bitfield_;
+        } else {
+          return {false, end(), std::next(begin(), i)};
+        }
       }
       if (el.dominates(els_[i])) {
-        n_removed++;
-        continue;
+        if( (els_[i].bitfield_ & ~el.bitfield_) > bitfield() ) {
+          els_[i].bitfield_ = els_[i].bitfield_ & ~el.bitfield_;
+        } else {
+          n_removed++;
+          continue;
+        }
       }
       els_[i - n_removed] = els_[i];
     }
@@ -49,29 +57,6 @@ struct pareto_set {
     els_.back() = std::move(el);
     return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
             end()};
-    /*
-    bitfield non_dominated_days{};
-    auto n_removed = std::size_t{0};
-    for (auto i = 0U; i < els_.size(); ++i) {
-      auto dom_res = els_[i].dominates(el);
-      if (std::get<0>(dom_res) == bitfield()) {
-        return {false, end(), std::next(begin(), i)};
-      } else {
-        el.bitfield_ = std::get<0>(dom_res);
-      }
-      if (std::get<1>(dom_res) == bitfield()) {
-        n_removed++;
-        continue;
-      } else {
-        els_[i].bitfield_ = std::get<1>(dom_res);
-      }
-      els_[i - n_removed] = els_[i];
-    }
-    els_.resize(els_.size() - n_removed + 1);
-    els_.back() = std::move(el);
-    return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
-            end()};
-            */
   }
 
   friend const_iterator begin(pareto_set const& s) { return s.begin(); }

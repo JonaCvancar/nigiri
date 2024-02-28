@@ -38,7 +38,7 @@ namespace nigiri::routing {
     };
 
     template <typename AlgoStats>
-    struct routing_result {
+    struct routing_result_oa {
         std::vector< pareto_set<journey_bitfield>> const* journeys_{nullptr};
         interval<unixtime_t> interval_;
         onetoall_search_stats search_stats_;
@@ -82,7 +82,8 @@ namespace nigiri::routing {
                           q_.start_time_)},
                   algo_{init(algo_state)} {}
 
-        routing_result<algo_stats_t> execute() {
+        routing_result_oa<algo_stats_t> execute() {
+          TBDL << "Onetoall_Search start\n";
             state_.results_.clear();
             state_.results_.resize(tt_.n_locations());
 
@@ -93,6 +94,7 @@ namespace nigiri::routing {
             while (true) {
                 trace("start_time={}\n", search_interval_);
 
+                TBDL << "Start interval search.\n";
                 search_interval();
 
                 if (is_ontrip() || max_interval_reached() ||
@@ -169,23 +171,26 @@ namespace nigiri::routing {
                 ++stats_.search_iterations_;
             }
 
-
             if (is_pretrip()) {
+              int notininterval = 0;
+              int exceedstraveltime = 0;
               for(auto& stop : state_.results_) {
-                TBDL << "Results before: " << stop.size() << "\n";
                 utl::erase_if(stop, [&](journey_bitfield const& j) {
+                  if(!search_interval_.contains(j.start_time_)) {
+                    notininterval++;
+                  }
+                  if(j.travel_time() > kMaxTravelTime) {
+                    exceedstraveltime++;
+                  }
+
                   return !search_interval_.contains(j.start_time_) ||
                          j.travel_time() > kMaxTravelTime;
                 });
                 utl::sort(stop, [](journey_bitfield const& a, journey_bitfield const& b) {
                   return a.start_time_ < b.start_time_;
                 });
-                TBDL << "Results after: " << stop.size() << "\n";
               }
-            }
-
-            for(auto& stop : state_.results_) {
-              TBDL << "Actual results size: " << stop.size() << "\n";
+              TBDL << "Trips removed not in interval: " << notininterval << ", exceeds travel time: " << exceedstraveltime << "\n";
             }
 
             return {.journeys_ = &state_.results_,
@@ -257,6 +262,7 @@ namespace nigiri::routing {
                         auto const worst_time_at_dest =
                                 start_time +
                                 (kFwd ? 1 : -1) * kMaxTravelTime;
+                        TBDL << "execute algo\n";
                         algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
                                      state_.results_);
 
