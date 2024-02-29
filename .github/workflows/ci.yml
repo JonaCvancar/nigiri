@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, tripbased-experiments ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, tripbased-experiments ]
   release:
     types:
       - published
