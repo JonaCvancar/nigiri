@@ -1,4 +1,5 @@
 #include <random>
+#include <fstream>
 
 #include "gtest/gtest.h"
 
@@ -109,19 +110,36 @@ TEST(aachen_test, one_to_all_3_hours) {
   auto const results = tripbased_onetoall(tt, "0001573",
   //auto const results = tripbased_onetoall(tt, "0001008",
                                           interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
-                                                   unixtime_t{sys_days{July / 30 / 2023}} + 10h});
+                                                   unixtime_t{sys_days{July / 30 / 2023}} + 8h});
 
   EXPECT_EQ(1, 1);
 
   int count = 0;
+  int idx = 0;
   int max_transfers = 0;
+  std::string outputDir = "/home/jona/uni/thesis/results/";
   for(const auto& element : results) {
+    if(element.size() == 0) {
+      idx++;
+      continue;
+    }
+    std::string filename = outputDir + "output_" + std::string(tt.locations_.names_[location_idx_t{idx}].view()) + ".txt";
+    std::ofstream outputFile(filename);
+    if (!outputFile.is_open()) {
+      std::cerr << "Error: Unable to open file " << filename << " for writing." << std::endl;
+      idx++;
+      continue;
+    }
+    outputFile << tt.locations_.names_[location_idx_t{idx}].view() << "\n";
     count += element.size();
     for(const auto& journey : element) {
+      journey.print(outputFile, tt);
       if(journey.transfers_ > max_transfers) {
         max_transfers = journey.transfers_;
       }
     }
+    outputFile.close();
+    idx++;
   }
   TBDL << "Number of trips in total: " << count << " Max Transfers: " << max_transfers << "\n";
 }
