@@ -83,18 +83,16 @@ namespace nigiri::routing {
                   algo_{init(algo_state)} {}
 
         routing_result_oa<algo_stats_t> execute() {
-          TBDL << "Onetoall_Search start\n";
             state_.results_.clear();
             state_.results_.resize(tt_.n_locations());
 
             state_.starts_.clear();
             // checks for lines departing from starts location and adds their start times to state starts
-            add_start_labels(q_.start_time_, true);
+            add_start_labels(q_.start_time_, false);
 
             while (true) {
                 trace("start_time={}\n", search_interval_);
 
-                TBDL << "Start interval search.\n";
                 search_interval();
 
                 if (is_ontrip() || max_interval_reached() ||
@@ -172,17 +170,8 @@ namespace nigiri::routing {
             }
 
             if (is_pretrip()) {
-              int notininterval = 0;
-              int exceedstraveltime = 0;
               for(auto& stop : state_.results_) {
                 utl::erase_if(stop, [&](journey_bitfield const& j) {
-                  if(!search_interval_.contains(j.start_time_)) {
-                    notininterval++;
-                  }
-                  if(j.travel_time() > kMaxTravelTime) {
-                    exceedstraveltime++;
-                  }
-
                   return !search_interval_.contains(j.start_time_) ||
                          j.travel_time() > kMaxTravelTime;
                 });
@@ -190,7 +179,6 @@ namespace nigiri::routing {
                   return a.start_time_ < b.start_time_;
                 });
               }
-              TBDL << "Trips removed not in interval: " << notininterval << ", exceeds travel time: " << exceedstraveltime << "\n";
             }
 
             return {.journeys_ = &state_.results_,
@@ -265,17 +253,6 @@ namespace nigiri::routing {
                         TBDL << "execute algo\n";
                         algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
                                      state_.results_);
-
-                        //ToDo last step
-                        /*
-                        for (auto& j : state_.results_) {
-                          if (j.legs_.empty() &&
-                              (is_ontrip() || search_interval_.contains(j.start_time_)) &&
-                              j.travel_time() < fastest_direct_) {
-                            algo_.reconstruct(q_, j);
-                          }
-                        }
-                         */
                     });
         }
 

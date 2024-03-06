@@ -12,12 +12,12 @@ namespace nigiri::routing::tripbased {
 
         //std::tuple<bitfield, bitfield> dominates(onetoall_reached_entry const& o) const {
         bool dominates(onetoall_reached_entry const& o) const {
-          if( (bitfield_ & o.bitfield_) > bitfield() ) {
-            return false;
-          }
-
           return transport_segment_idx_ <= o.transport_segment_idx_ &&
                  stop_idx_ <= o.stop_idx_ && n_transfers_ <= o.n_transfers_;
+        }
+
+        void set_bitfield(bitfield bf) {
+          bitfield_ = bf;
         }
 
         transport_segment_idx_t transport_segment_idx_;

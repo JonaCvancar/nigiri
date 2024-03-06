@@ -57,10 +57,6 @@ struct journey_bitfield {
   };
 
   bool dominates(journey_bitfield const& o) const {
-    if( (bitfield_ & o.bitfield_) > bitfield() ) {
-      return false;
-    }
-
     if (start_time_ <= dest_time_) {
       return transfers_ <= o.transfers_ && start_time_ >= o.start_time_ &&
              dest_time_ <= o.dest_time_;

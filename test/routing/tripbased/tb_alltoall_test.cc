@@ -107,7 +107,8 @@ TEST(aachen_test, one_to_all_3_hours) {
   load_timetable(src, loader::hrd::hrd_test_avv, loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
   finalize(tt);
 
-  auto const results = tripbased_onetoall(tt, "0001573",
+  auto const results = tripbased_onetoall(tt, "0001029",
+  //auto const results = tripbased_onetoall(tt, "0001573",
   //auto const results = tripbased_onetoall(tt, "0001008",
                                           interval{unixtime_t{sys_days{July / 30 / 2023}} + 7h,
                                                    unixtime_t{sys_days{July / 30 / 2023}} + 8h});
@@ -116,32 +117,70 @@ TEST(aachen_test, one_to_all_3_hours) {
 
   int count = 0;
   int idx = 0;
-  int max_transfers = 0;
+  int max_transfers_total = 0;
+  std::vector<int> transfer_ns;
   std::string outputDir = "/home/jona/uni/thesis/results/";
   for(const auto& element : results) {
     if(element.size() == 0) {
       idx++;
       continue;
     }
-    std::string filename = outputDir + "output_" + std::string(tt.locations_.names_[location_idx_t{idx}].view()) + ".txt";
+    int max_transfers = 0;
+
+    for(const auto& journey : element) {
+
+      auto it = std::find(transfer_ns.begin(), transfer_ns.end(), journey.transfers_);
+      if(it == transfer_ns.end()) {
+        transfer_ns.emplace_back(journey.transfers_);
+      }
+    }
+
+    std::string filename = outputDir + "output_" + std::string(tt.locations_.names_[location_idx_t{idx}].view()) + "(" + std::to_string(idx) + ").txt";
     std::ofstream outputFile(filename);
     if (!outputFile.is_open()) {
       std::cerr << "Error: Unable to open file " << filename << " for writing." << std::endl;
       idx++;
       continue;
     }
-    outputFile << tt.locations_.names_[location_idx_t{idx}].view() << "\n";
+    outputFile << tt.locations_.names_[location_idx_t{idx}].view() << " (" << idx << ") with " << element.size() << " results.\n";
     count += element.size();
+
+    std::vector<bitfield> bitfields;
+
     for(const auto& journey : element) {
-      journey.print(outputFile, tt);
+      if(std::find(bitfields.begin(), bitfields.end(), journey.bitfield_) == bitfields.end()) {
+        bitfields.emplace_back(journey.bitfield_);
+        outputFile << "Operating Days: "; // << journey.bitfield_ << "\n";
+        for(unsigned long i = 0; i < journey.bitfield_.num_blocks; i++) {
+          outputFile << journey.bitfield_.blocks_[i] << " ";
+        }
+        outputFile << "\n";
+        for(const auto& journey_temp : element) {
+          if(journey.bitfield_ == journey_temp.bitfield_) {
+            journey_temp.print(outputFile, tt);
+          }
+        }
+
+      } else {
+        continue;
+      }
       if(journey.transfers_ > max_transfers) {
         max_transfers = journey.transfers_;
       }
+      if(journey.transfers_ > max_transfers_total) {
+        max_transfers_total = journey.transfers_;
+      }
     }
+
+    outputFile << "\n\n";
+    for(const auto& bits : bitfields) {
+      outputFile << bits << "\n";
+    }
+
     outputFile.close();
     idx++;
   }
-  TBDL << "Number of trips in total: " << count << " Max Transfers: " << max_transfers << "\n";
+  TBDL << "Number of trips in total: " << count << " Max Transfers: " << max_transfers_total << "\n";
 }
 
 

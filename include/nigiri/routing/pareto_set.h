@@ -36,16 +36,20 @@ struct pareto_set {
   std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
     auto n_removed = std::size_t{0};
     for (auto i = 0U; i < els_.size(); ++i) {
+      if( !(els_[i].bitfield_ & el.bitfield_).any() ) {
+        continue;
+      }
+
       if (els_[i].dominates(el)) {
-        if( (el.bitfield_ & ~els_[i].bitfield_) > bitfield()) {
-          el.bitfield_ = el.bitfield_ & ~els_[i].bitfield_;
+        if( (el.bitfield_ & ~els_[i].bitfield_).any()) {
+          el.set_bitfield(el.bitfield_ & ~els_[i].bitfield_);
         } else {
           return {false, end(), std::next(begin(), i)};
         }
       }
       if (el.dominates(els_[i])) {
-        if( (els_[i].bitfield_ & ~el.bitfield_) > bitfield() ) {
-          els_[i].bitfield_ = els_[i].bitfield_ & ~el.bitfield_;
+        if( (els_[i].bitfield_ & ~el.bitfield_).any()) {
+          els_[i].set_bitfield(els_[i].bitfield_ & ~el.bitfield_);
         } else {
           n_removed++;
           continue;
@@ -54,9 +58,14 @@ struct pareto_set {
       els_[i - n_removed] = els_[i];
     }
     els_.resize(els_.size() - n_removed + 1);
-    els_.back() = std::move(el);
-    return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
-            end()};
+    if(el.bitfield_.any()) {
+      els_.back() = std::move(el);
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end()};
+    } else {
+      return {false, end(), std::next(begin())};
+    }
+
   }
 
   friend const_iterator begin(pareto_set const& s) { return s.begin(); }

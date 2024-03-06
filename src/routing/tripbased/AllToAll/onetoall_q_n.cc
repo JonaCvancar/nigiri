@@ -61,9 +61,12 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
               // update reached
               r_.update(transport_segment_idx, std::get<1>(tuple), stop_idx,
                         n_transfers);
-              return true;
+              //return true;
             }
           }
+        }
+        if(!r_query_res.empty()) {
+          return true;
         }
     }
     return false;

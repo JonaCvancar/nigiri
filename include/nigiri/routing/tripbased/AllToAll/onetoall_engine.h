@@ -81,11 +81,12 @@ namespace nigiri::routing::tripbased {
                      );
 
     private:
-        void handle_start(oneToAll_start const&);
+        void handle_start(oneToAll_start const&, unixtime_t const);
 
         void handle_start_footpath(std::int32_t const,
                                    std::int32_t const,
-                                   footpath const);
+                                   footpath const,
+                                   unixtime_t const);
 
         void handle_segment(unixtime_t const start_time,
                             unixtime_t const worst_time_at_dest,

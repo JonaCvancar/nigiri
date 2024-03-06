@@ -44,38 +44,15 @@ std::vector<std::tuple<std::uint16_t, bitfield>> onetoall_reached::query(transpo
             re.transport_segment_idx_ <= transport_segment_idx &&
             re.stop_idx_ < stop_idx_min) {
 
-          bool res_already_exists = false;
-          for(auto &prev_res : res) {
-            if(std::get<0>(prev_res) == re.stop_idx_) {
-              //TBDL << "Stop_idx: " << re.stop_idx_ << " already exists in result set, operating days added.\n";
-              prev_res = std::make_tuple(re.stop_idx_, std::get<1>(prev_res) | (operating_days & re.bitfield_) );
-              not_reached_days &= ~(operating_days & re.bitfield_);
-              res_already_exists = true;
-              continue;
-            }
-          }
-
-          if(!res_already_exists) {
-            //TBDL << "Earlier segment (" << re.transport_segment_idx_ << ") visited on days: " << re.bitfield_.blocks_[0] << "\n";
-            res.emplace_back(re.stop_idx_, operating_days & re.bitfield_);
-            not_reached_days &= ~(operating_days & re.bitfield_);
-          }
+          bitfield common_days = not_reached_days & re.bitfield_;
+          res.emplace_back(re.stop_idx_, common_days);
+          not_reached_days = not_reached_days & ~common_days;
         }
       }
     }
 
-    if( not_reached_days > bitfield() ) {
+    if( not_reached_days.any() ) {
       res.push_back(std::make_tuple(stop_idx_max, not_reached_days));
-      //TBDL << "Days not reached so far: " << not_reached_days.blocks_[0] << "\n";
-    } else if(res.empty()) {
-      res.push_back(std::make_tuple(stop_idx_max, operating_days));
-      //TBDL << "All days not reached so far.";
     }
-
-    //TBDL << "Results are:\n";
-    for(auto &temp_res : res) {
-      //TBDL << "Station: " << std::get<0>(temp_res) << " operating days: " << std::get<1>(temp_res).blocks_[0] << "\n";
-    }
-
     return res;
 }

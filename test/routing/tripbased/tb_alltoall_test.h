@@ -46,8 +46,6 @@ namespace nigiri::test {
         routing::tripbased::transfer_set ts;
         build_transfer_set(tt, ts, 10);
 
-        TBDL << "building transfer set done.\n";
-
         auto algo_state = algo_state_t{tt, ts};
 
         auto const src = source_idx_t{0};
@@ -58,27 +56,12 @@ namespace nigiri::test {
                             0U}}
         };
 
-        TBDL << "start sarch\n";
         return *(routing::onetoall_search<direction::kForward, algo_t>{
             tt, nullptr, search_state, algo_state, std::move(q)}
             .execute().journeys_);
     }
 
-    timetable tripbased_alltoall(timetable &tt) {
-        //using algo_t = routing::tripbased::query_engine;
-        using algo_state_t = routing::tripbased::oneToAll_state;
+    timetable tripbased_query(std::vector<pareto_set<routing::journey_bitfield>> &, std::string_view to, routing::start_time_t time) {
 
-        static auto search_state = routing::onetoall_search_state{};
-        routing::tripbased::transfer_set ts;
-        build_transfer_set(tt, ts, 10);
-        auto algo_state = algo_state_t{tt, ts};
-
-        return timetable{};
-        /*
-        return *(routing::search<direction::kForward, algo_t>{
-                tt, nullptr, search_state, algo_state, std::move(q)}
-                .execute()
-                .journeys_);
-                */
     }
 }
