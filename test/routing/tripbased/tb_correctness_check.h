@@ -14,7 +14,18 @@
 
 namespace nigiri::test {
 
-std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall_correctness(
+
+
+void tripbased_onetoall_correctness(
+//void tripbased_onetoall_correctness(
+    timetable& tt,
+    pareto_set<routing::journey_bitfield> const& oa,
+    pareto_set<routing::journey>& results,
+    routing::start_time_t time) {
+  routing::tripbased::tripbased_onetoall_query(tt, oa, results, time);
+}
+
+std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall_query(
     timetable& tt,
     routing::tripbased::transfer_set& ts,
     location_idx_t from,
@@ -28,12 +39,12 @@ std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall_correctnes
   auto const src = source_idx_t{0};
   routing::onetoall_query q;
   q = routing::onetoall_query{.start_time_ = time,
-      .start_ = {{from, 0_minutes, 0U}}};
+                              .start_ = {{from, 0_minutes, 0U}}};
 
   return *(routing::onetoall_search<direction::kForward, algo_oa_t>{
       tt, nullptr, search_state_oa, algo_state_oa, std::move(q)}
-      .execute()
-      .journeys_);
+               .execute()
+               .journeys_);
 }
 
 pareto_set<routing::journey> tripbased_search_correctness(timetable& tt,
@@ -47,7 +58,6 @@ pareto_set<routing::journey> tripbased_search_correctness(timetable& tt,
   static auto search_state_tb = routing::search_state{};
   auto algo_state_tb = algo_state_tb_t{tt, ts};
 
-  auto const src = source_idx_t{0};
   auto q = routing::query{
       .start_time_ = time,
       .start_ = {{from, 0_minutes, 0U}},

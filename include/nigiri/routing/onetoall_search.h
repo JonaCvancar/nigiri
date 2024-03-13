@@ -250,7 +250,6 @@ namespace nigiri::routing {
                         auto const worst_time_at_dest =
                                 start_time +
                                 (kFwd ? 1 : -1) * kMaxTravelTime;
-                        TBDL << "execute algo\n";
                         algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
                                      state_.results_);
                     });

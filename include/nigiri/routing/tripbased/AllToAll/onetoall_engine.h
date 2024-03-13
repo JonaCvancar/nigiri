@@ -67,10 +67,10 @@ namespace nigiri::routing::tripbased {
         }
 
         void add_start(location_idx_t const l, unixtime_t const t) {
-#ifndef NDEBUG
+/*#ifndef NDEBUG
             TBDL << "add_start: " << tt_.locations_.names_.at(l).view() << ", "
                  << dhhmm(unix_tt(tt_, t)) << "\n";
-#endif
+#endif*/
             state_.query_starts_.emplace_back(l, t);
         }
 

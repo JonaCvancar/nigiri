@@ -287,6 +287,7 @@ private:
           algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
                         state_.results_);
 
+          /*
           for (auto& j : state_.results_) {
             if (j.legs_.empty() &&
                 (is_ontrip() || search_interval_.contains(j.start_time_)) &&
@@ -294,6 +295,7 @@ private:
               algo_.reconstruct(q_, j);
             }
           }
+           */
         });
   }
 

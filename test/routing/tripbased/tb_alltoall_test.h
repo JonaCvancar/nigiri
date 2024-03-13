@@ -61,7 +61,9 @@ namespace nigiri::test {
             .execute().journeys_);
     }
 
+    /*
     timetable tripbased_query(std::vector<pareto_set<routing::journey_bitfield>> &, std::string_view to, routing::start_time_t time) {
 
     }
+     */
 }
