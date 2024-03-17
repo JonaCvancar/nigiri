@@ -23,6 +23,8 @@ namespace nigiri::routing::tripbased {
 
         auto& operator[](queue_idx_t pos) { return segments_[pos]; }
 
+        void erase(unsigned int start_idx, unsigned int end_idx) { segments_.erase(segments_.begin() + start_idx, segments_.begin() + end_idx); }
+
         auto size() const { return segments_.size(); }
 
         void print(std::ostream&, queue_idx_t const);

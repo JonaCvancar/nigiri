@@ -40,21 +40,20 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
     auto const r_query_res = r_.query(transport_segment_idx, n_transfers, operating_days);
     for(const auto& tuple : r_query_res) {
       if (stop_idx < std::get<0>(tuple)) {
-
         // new n?
         if (n_transfers == start_.size()) {
           start_.emplace_back(segments_.size());
           end_.emplace_back(segments_.size());
         }
 
-        if(std::get<1>(tuple) > bitfield()) {
+        if(std::get<1>(tuple).any()) {
           // add transport segment
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
                                  transferred_from, std::get<1>(tuple));
-/*#ifndef NDEBUG
+#ifndef NDEBUG
               TBDL << "Enqueued transport segment: ";
-              print(std::cout, static_cast<queue_idx_t>(segments_.size() - 1));
-#endif*/
+              print(TBDL, static_cast<queue_idx_t>(segments_.size() - 1));
+#endif
           // increment index
           ++end_[n_transfers];
 

@@ -122,6 +122,7 @@ set(nigiri-test-files2
         test/routing/tripbased/test_data.cc
         #test/routing/tripbased/tb_alltoall_test.cc
         test/routing/tripbased/tb_correctness_check.cc
+        test/raptor_search.cc
 )
 add_executable(nigiri-test-all ${nigiri-test-files2})
 target_link_libraries(nigiri-test-all nigiri gtest ianatzdb-res nigiri-generated)

@@ -25,6 +25,13 @@ pareto_set<routing::journey> raptor_search(timetable const&,
 
 pareto_set<routing::journey> raptor_search(timetable const&,
                                            rt_timetable const*,
+                                           location_idx_t from,
+                                           location_idx_t to,
+                                           routing::start_time_t,
+                                           direction = direction::kForward);
+
+pareto_set<routing::journey> raptor_search(timetable const&,
+                                           rt_timetable const*,
                                            routing::query,
                                            direction = direction::kForward);
 

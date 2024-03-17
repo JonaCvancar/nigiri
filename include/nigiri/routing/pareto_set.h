@@ -37,6 +37,7 @@ struct pareto_set {
     auto n_removed = std::size_t{0};
     for (auto i = 0U; i < els_.size(); ++i) {
       if( !(els_[i].bitfield_ & el.bitfield_).any() ) {
+        els_[i - n_removed] = els_[i];
         continue;
       }
 

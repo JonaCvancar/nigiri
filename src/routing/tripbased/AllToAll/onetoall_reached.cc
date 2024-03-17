@@ -35,9 +35,8 @@ std::vector<std::tuple<std::uint16_t, bitfield>> onetoall_reached::query(transpo
     //TBDL << "Route: " << route_idx <<" Segment_idx: " << transport_segment_idx << " Max_Station: " << stop_idx_max << " operating days: " << operating_days.blocks_[0] <<"\n";
 
     // find minimal stop index among relevant entries
-    bool reached_found = false;
     for (auto const& re : data_[route_idx.v_]) {
-      if( (operating_days & re.bitfield_) > bitfield() ){
+      if( (operating_days & re.bitfield_).any() ){
         // only entries with less or equal n_transfers and less or equal
         // transport_segment_idx are relevant
         if (re.n_transfers_ <= n_transfers &&
@@ -52,7 +51,7 @@ std::vector<std::tuple<std::uint16_t, bitfield>> onetoall_reached::query(transpo
     }
 
     if( not_reached_days.any() ) {
-      res.push_back(std::make_tuple(stop_idx_max, not_reached_days));
+      res.emplace_back(stop_idx_max, not_reached_days);
     }
     return res;
 }

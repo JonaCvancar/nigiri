@@ -70,6 +70,22 @@ pareto_set<routing::journey> raptor_search(timetable const& tt,
 
 pareto_set<routing::journey> raptor_search(timetable const& tt,
                                            rt_timetable const* rtt,
+                                           location_idx_t from,
+                                           location_idx_t to,
+                                           routing::start_time_t time,
+                                           direction const search_dir) {
+  auto const src = source_idx_t{0};
+  auto q = routing::query{
+      .start_time_ = time,
+      .start_ = {{from, 0_minutes,
+                  0U}},
+      .destination_ = {
+          {to, 0_minutes, 0U}}};
+  return raptor_search(tt, rtt, std::move(q), search_dir);
+}
+
+pareto_set<routing::journey> raptor_search(timetable const& tt,
+                                           rt_timetable const* rtt,
                                            std::string_view from,
                                            std::string_view to,
                                            std::string_view time,
