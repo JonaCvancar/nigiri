@@ -13,7 +13,7 @@
 #include "nigiri/routing/journey_bitfield.h"
 #include "nigiri/routing/pareto_set.h"
 #include "nigiri/routing/onetoall_query.h"
-#include "nigiri/routing/start_times.h"
+#include "nigiri/routing/onetoall_start_times.h"
 #include "nigiri/timetable.h"
 #include "nigiri/types.h"
 #include "nigiri/routing/tripbased/dbg.h"
@@ -28,8 +28,9 @@ namespace nigiri::routing {
         onetoall_search_state& operator=(onetoall_search_state&&) = default;
         ~onetoall_search_state() = default;
 
-        std::vector<start> starts_;
-        std::vector< pareto_set<journey_bitfield> > results_;
+        std::vector<onetoall_start> starts_;
+
+        std::vector<pareto_set<journey_bitfield> > results_;
     };
 
     struct onetoall_search_stats {
@@ -88,7 +89,7 @@ namespace nigiri::routing {
 
             state_.starts_.clear();
             // checks for lines departing from starts location and adds their start times to state starts
-            add_start_labels(q_.start_time_, false);
+            add_start_labels(q_.start_time_, true);
 
             while (true) {
                 trace("start_time={}\n", search_interval_);
@@ -218,9 +219,9 @@ namespace nigiri::routing {
 
         void add_start_labels(start_time_t const& start_interval,
                               bool const add_ontrip) {
-            get_starts(SearchDir, tt_, rtt_, start_interval, q_.start_,
+            onetoall_get_starts(SearchDir, tt_, rtt_, start_interval, q_.start_,
                        q_.start_match_mode_, q_.use_start_footpaths_, state_.starts_,
-                       add_ontrip, true);
+                       add_ontrip);
         }
 
         void remove_ontrip_results() {
@@ -234,7 +235,7 @@ namespace nigiri::routing {
         void search_interval() {
             utl::equal_ranges_linear(
                     state_.starts_,
-                    [](start const& a, start const& b) {
+                    [](onetoall_start const& a, onetoall_start const& b) {
                         return a.time_at_start_ == b.time_at_start_;
                     },
                     [&](auto&& from_it, auto&& to_it) {
@@ -244,7 +245,7 @@ namespace nigiri::routing {
                             trace("init: time_at_start={}, time_at_stop={} at {}\n",
                                   s.time_at_start_, s.time_at_stop_, location_idx_t{s.stop_});
 
-                            algo_.add_start(s.stop_, s.time_at_stop_);
+                            algo_.add_start(s.stop_, s.time_at_stop_, s.bitfield_);
                         }
 
                         auto const worst_time_at_dest =

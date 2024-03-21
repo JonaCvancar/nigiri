@@ -66,12 +66,12 @@ namespace nigiri::routing::tripbased {
             state_.query_starts_.clear();
         }
 
-        void add_start(location_idx_t const l, unixtime_t const t) {
+        void add_start(location_idx_t const l, unixtime_t const t, bitfield const bf) {
 /*#ifndef NDEBUG
             TBDL << "add_start: " << tt_.locations_.names_.at(l).view() << ", "
                  << dhhmm(unix_tt(tt_, t)) << "\n";
 #endif*/
-            state_.query_starts_.emplace_back(l, t);
+            state_.query_starts_.emplace_back(l, t, bf);
         }
 
         void execute(unixtime_t const start_time,
@@ -85,6 +85,7 @@ namespace nigiri::routing::tripbased {
 
         void handle_start_footpath(std::int32_t const,
                                    std::int32_t const,
+                                   bitfield const,
                                    footpath const,
                                    unixtime_t const);
 

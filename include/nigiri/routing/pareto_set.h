@@ -35,19 +35,34 @@ struct pareto_set {
 
   std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
     auto n_removed = std::size_t{0};
+#if defined(EQUAL_JOURNEY)
+    bool equal = false;
+    unsigned long equal_idx = 0U;
+#endif
     for (auto i = 0U; i < els_.size(); ++i) {
+#if defined(EQUAL_JOURNEY)
+      if(els_[i].equal(el)) {
+        els_[i - n_removed] = els_[i];
+        equal = true;
+        equal_idx = i - n_removed;
+        continue;
+        // return {true, std::next(begin(), i), end()};
+      }
+#endif
+
       if( !(els_[i].bitfield_ & el.bitfield_).any() ) {
         els_[i - n_removed] = els_[i];
         continue;
       }
 
       if (els_[i].dominates(el)) {
-        if( (el.bitfield_ & ~els_[i].bitfield_).any()) {
+        if ((el.bitfield_ & ~els_[i].bitfield_).any()) {
           el.set_bitfield(el.bitfield_ & ~els_[i].bitfield_);
         } else {
           return {false, end(), std::next(begin(), i)};
         }
       }
+
       if (el.dominates(els_[i])) {
         if( (els_[i].bitfield_ & ~el.bitfield_).any()) {
           els_[i].set_bitfield(els_[i].bitfield_ & ~el.bitfield_);
@@ -58,6 +73,19 @@ struct pareto_set {
       }
       els_[i - n_removed] = els_[i];
     }
+#if defined(EQUAL_JOURNEY)
+    if(equal) {
+      if(els_[equal_idx].equal(el)) {
+        els_[equal_idx].set_bitfield(els_[equal_idx].bitfield_ | el.bitfield_);
+      } else {
+        std::cout << "Equal index wrong.\n";
+      }
+      els_.resize(els_.size() - n_removed);
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end()};
+    }
+#endif
+
     els_.resize(els_.size() - n_removed + 1);
     if(el.bitfield_.any()) {
       els_.back() = std::move(el);

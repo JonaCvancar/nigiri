@@ -16,6 +16,13 @@ namespace nigiri::routing::tripbased {
                  stop_idx_ <= o.stop_idx_ && n_transfers_ <= o.n_transfers_;
         }
 
+#if defined(EQUAL_JOURNEY)
+        bool equal(onetoall_reached_entry const& o ) {
+          return transport_segment_idx_ == o.transport_segment_idx_ &&
+                 stop_idx_ == o.stop_idx_ && n_transfers_ == o.n_transfers_;
+        }
+#endif
+
         void set_bitfield(bitfield bf) {
           bitfield_ = bf;
         }
