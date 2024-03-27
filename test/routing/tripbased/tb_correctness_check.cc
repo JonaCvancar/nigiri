@@ -243,6 +243,7 @@ TEST(oa_correctness, less_trips) {
 }
 */
 
+/*
 TEST(oa_correctness, save_all_results) {
   int begin_h = 0;
   int end_h = 23;
@@ -269,6 +270,7 @@ TEST(oa_correctness, save_all_results) {
       //tt.locations_.location_id_to_idx_.at({"0001029", src}); // Elisenbrunnen
       //tt.locations_.location_id_to_idx_.at({"0001227", src}); // Kirschbäumchen
       tt.locations_.location_id_to_idx_.at({"0001573", src}); // Lemiers
+      //tt.locations_.location_id_to_idx_.at({"0006033", src}); // Vettweiß Gladbach Mersheim
 
   unixtime_t start_time = begin_d + hours{0};
   unixtime_t end_time = end_d + hours{23} + minutes{59};
@@ -351,6 +353,11 @@ TEST(oa_correctness, save_all_results) {
                << " to: " << location_name(tt, end_loc_idx) << "_"
                << end_loc_idx.v_ << "\n";
 
+    for(auto& journey : results[end_location]) {
+      journey.print(outputFile, tt);
+      outputFile << journey.bitfield_ << "\n";
+    }
+
     bool check = true;
     for (int n_day = 0; n_day < n_days; n_day++) {
       check = true;
@@ -367,6 +374,9 @@ TEST(oa_correctness, save_all_results) {
         h1 = h2;
         h2 = temp;
       }
+
+      h1 = begin_h;
+      h2 = end_h;
 
       outputFile << "Day " << n_day << " (" << h1 << ":" << h2 << ")\n";
 
@@ -404,7 +414,7 @@ TEST(oa_correctness, save_all_results) {
             }
           }
           if (!temp_check) {
-            outputFile << "TB: ";
+            //outputFile << "TB: ";
             //journey.print(outputFile, tt);
             check = false;
           }
@@ -427,7 +437,7 @@ TEST(oa_correctness, save_all_results) {
             }
           }
           if (!temp_check) {
-            outputFile << "OA: ";
+            //outputFile << "OA: ";
             //journey.print(outputFile, tt);
             check = false;
           }
@@ -438,6 +448,12 @@ TEST(oa_correctness, save_all_results) {
         outputFile << "TB:\n";
         for(auto& journey : results_tb) {
           journey.print(outputFile, tt);
+        }
+        if(results_tb.size() != results_rp.size()) {
+          outputFile << "RP:\n";
+          for(auto& journey : results_rp) {
+            journey.print(outputFile, tt);
+          }
         }
         outputFile << "OA:\n";
         for(auto& journey : results_oa) {
@@ -466,15 +482,13 @@ TEST(oa_correctness, save_all_results) {
         }
         //outputFile << ", Diff: " << results_oa.size() - results_tb.size();
       }
-      /*
-          outputFile << "OA Size=" << results_oa.size()
-                     << ", TB Size=" << results_tb.size()
-                     << ", RP Size=" << results_rp.size()
-                     << " All equal length=" << equal_length;
+      outputFile << "OA Size=" << results_oa.size()
+                 << ", TB Size=" << results_tb.size()
+                 << ", RP Size=" << results_rp.size()
+                 << " All equal length=" << equal_length;
 
-          outputFile << "\n";
-          outputFile << "\n";
-    */
+      outputFile << "\n";
+      outputFile << "\n";
     }
 
     //EXPECT_EQ(check, true);
@@ -491,6 +505,7 @@ TEST(oa_correctness, save_all_results) {
   }
   TBDL << "Tests done: " << i << "\n";
 }
+*/
 
 /*
 TEST(oa_correctness, save_all_results2) {
@@ -916,3 +931,385 @@ TEST(oa_correctness, check_differences) {
   TBDL << "Correct journeys: " << correct_j << ", Only OA: " << only_oa_j << ", Only TB: " << only_tb_j << ", deviating: " << deviation_j << "\n";
 }
 */
+
+/*
+TEST(oa_correctness, tb_earliest_arrival) {
+  int begin_h = 0;
+  int end_h = 23;
+  unixtime_t begin_d = unixtime_t{sys_days{June / 11 / 2023}};
+  unixtime_t end_d = unixtime_t{sys_days{June / 11 / 2023}};
+
+  auto bars = utl::global_progress_bars{false};
+  auto progress_tracker = utl::activate_progress_tracker("correctness");
+
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv,
+      // loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+                 loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  routing::tripbased::transfer_set ts;
+  build_transfer_set(tt, ts, 10);
+
+  location_idx_t start_loc_idx =
+      //tt.locations_.location_id_to_idx_.at({"0001008", src}); // Aachen Hbf
+      //tt.locations_.location_id_to_idx_.at({"0001029", src}); // Elisenbrunnen
+      //tt.locations_.location_id_to_idx_.at({"0001227", src}); // Kirschbäumchen
+      tt.locations_.location_id_to_idx_.at({"0001573", src}); // Lemiers
+  //tt.locations_.location_id_to_idx_.at({"0006033", src}); // Vettweiß Gladbach Mersheim
+
+  unixtime_t start_time = begin_d + hours{0};
+  unixtime_t end_time = end_d + hours{23} + minutes{59};
+
+  int n_days = 365;
+  int n_tests = 100;
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+
+  int min_value = 0;
+  int max_value = 5438;
+
+  std::uniform_int_distribution<> dis(min_value, max_value);
+  std::uniform_int_distribution<> dis2(begin_h, end_h);
+
+  std::cout << "Start onetoall\n";
+  auto const results = tripbased_onetoall_query(
+      tt, ts, start_loc_idx, interval{start_time, end_time});
+  std::cout << "End onetoall\n";
+
+  int i = 0;
+  for (; i < n_tests; i++) {
+    TBDL << "Test " << i << "\n";
+
+    std::size_t max_diff = 0;
+
+    unsigned long end_location = static_cast<unsigned long>(dis(gen));
+    location_idx_t end_loc_idx = location_idx_t{end_location};
+
+    TBDL << "From: " << location_name(tt, start_loc_idx)
+         << " to: " << location_name(tt, end_loc_idx) << "_"
+         << end_loc_idx.v_ << "\n";
+
+    for (int n_day = 0; n_day < n_days; n_day++) {
+      int h1 = dis2(gen);
+
+      pareto_set<routing::journey> results_oa;
+      tripbased_onetoall_correctness(
+          tt, results[end_location], results_oa,
+          {begin_d + days{n_day} + hours{h1}});
+
+      pareto_set<routing::journey> results_tb = tripbased_search_correctness(
+          tt, ts, start_loc_idx, end_loc_idx,
+          {begin_d + days{n_day} + hours{h1}});
+
+      pareto_set<routing::journey> results_rp = raptor_search(
+          tt, nullptr, start_loc_idx, end_loc_idx,
+          {begin_d + days{n_day} + hours{h1}});
+
+      if(results_oa.size() != results_tb.size() && h1 < 22) {
+        std::cout << "Day " << n_day << " (" << h1 << ")\n";
+        if (results_oa.size()) {
+          std::cout << "OA:\n";
+          for (auto& journey : results_oa) {
+            journey.print(std::cout, tt);
+          }
+        }
+
+        if (results_tb.size()) {
+          std::cout << "TB:\n";
+          for (auto& journey : results_tb) {
+            journey.print(std::cout, tt);
+          }
+        }
+
+        if (results_rp.size()) {
+          std::cout << "RP:\n";
+          for (auto& journey : results_rp) {
+            journey.print(std::cout, tt);
+          }
+        }
+      }
+    }
+  }
+}
+*/
+
+TEST(oa_correctness, test_bitfield_idx) {
+  auto bars = utl::global_progress_bars{false};
+  auto progress_tracker = utl::activate_progress_tracker("correctness");
+
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv,
+                 loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  routing::tripbased::transfer_set ts;
+  build_transfer_set(tt, ts, 10);
+
+  location_idx_t start =
+      tt.locations_.location_id_to_idx_.at({"0001008", src}); // Aachen Hbf
+      //tt.locations_.location_id_to_idx_.at({"0001573", src}); // Kirschbäumchen
+
+  TBDL << "From: " << location_name(tt, start)
+       << "\n";
+
+  auto const start_timer = steady_clock::now();
+  auto const results = tripbased_onetoall_query(
+      tt, ts, start,
+      interval{
+          unixtime_t{sys_days{June / 11 / 2023}} + hours{0},
+          unixtime_t{sys_days{June / 11 / 2023}} + hours{23} + minutes{59}});
+  auto const stop_timer = steady_clock::now();
+  TBDL << "AllToAll calculation took: "
+       << hh_mm_ss_str(stop_timer - start_timer) <<  "\n";
+
+  int count = 0;
+  int max_transfers = 0;
+  for (const auto& element : results) {
+    count += element.size();
+    for (const auto& journey : element) {
+      if (journey.transfers_ > max_transfers) {
+        max_transfers = journey.transfers_;
+      }
+    }
+  }
+  TBDL << "Number of trips in total: " << count
+       << " Max Transfers: " << max_transfers << "\n";
+}
+
+/*
+TEST(oa_correctness, zero_trips) {
+  std::vector<std::string_view> stop_list = {
+      "0123483",
+      "0003222",
+      "0004331",
+      "0123166",
+      "0278269",
+      "0123433",
+      "2655801",
+      "2654931",
+      "0009249",
+      "0123069",
+      "0005436",
+      "0272131",
+      "0278646",
+      "2655815",
+      "0003244",
+      "0272966",
+      "0123214",
+      "0123395",
+      "0123733",
+      "2655811",
+      "0005247",
+      "0123186",
+      "0123357",
+      "0123843",
+      "0123365",
+      "2658593",
+      "0123521",
+      "0282498",
+      "0277131",
+      "0275152",
+      "0002712",
+      "0123453",
+      "0009116",
+      "0275361",
+      "0275137",
+      "0275185",
+      "0286344",
+      "2650775",
+      "0123847",
+      "0004670",
+      "0275253",
+      "0278933",
+      "0274233",
+      "0123287"
+  };
+
+  auto bars = utl::global_progress_bars{false};
+  auto progress_tracker = utl::activate_progress_tracker("correctness");
+
+  constexpr auto const src = source_idx_t{0U};
+  timetable tt;
+  tt.date_range_ = test_full_period();
+  register_special_stations(tt);
+  load_timetable(src, loader::hrd::hrd_test_avv,
+                 loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
+  finalize(tt);
+
+  routing::tripbased::transfer_set ts;
+  build_transfer_set(tt, ts, 10);
+
+  auto const locations = get_locations(("/home/jona/uni/thesis/data/input/aachen/bahnhof"));
+
+  for(unsigned long i = 0; i < stop_list.size(); i++) {
+    location_idx_t start =
+        tt.locations_.location_id_to_idx_.at({stop_list[i], src}); // Kirschbäumchen
+
+    TBDL << "From: " << location_name(tt, start)
+         << "\n";
+
+    auto const start_timer = steady_clock::now();
+    auto const results = tripbased_onetoall_query(
+        tt, ts, start,
+        interval{
+            unixtime_t{sys_days{June / 11 / 2023}} + hours{0},
+            unixtime_t{sys_days{June / 11 / 2023}} + hours{23} + minutes{59}});
+    auto const stop_timer = steady_clock::now();
+    TBDL << "AllToAll calculation took: "
+         << hh_mm_ss_str(stop_timer - start_timer) <<  "\n";
+
+    int count = 0;
+    int max_transfers = 0;
+    for (const auto& element : results) {
+      count += element.size();
+      for (const auto& journey : element) {
+        if (journey.transfers_ > max_transfers) {
+          max_transfers = journey.transfers_;
+        }
+      }
+    }
+    TBDL << "Number of trips in total: " << count
+         << " Max Transfers: " << max_transfers << "\n";
+
+    for(unsigned long test = 0; test < locations.size(); test++) {
+      if(test%250 == 0 && test > 0) {
+        TBDL << test << "\n";
+      }
+      location_idx_t end = tt.locations_.location_id_to_idx_.at({locations[test], src});
+      for(int day = 0; day < test_full_period().size().count(); day++) {
+        pareto_set<routing::journey> results_tb = tripbased_search_correctness(
+            tt, ts, start, end,
+            interval{
+                unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{0},
+                unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{23} + minutes{59}});
+
+        if (results_tb.size()) {
+          TBDL << "TB\n";
+        }
+
+        pareto_set<routing::journey> results_rp = raptor_search(
+            tt, nullptr, start, end,
+            interval{
+                unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{0},
+                unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{23} + minutes{59}});
+
+        if (results_rp.size()) {
+          TBDL << "RP\n";
+        }
+      }
+    }
+  }
+
+  int n_tests = 100;
+  int n_days = 365;
+
+  std::string outputDir = "/home/jona/uni/thesis/";
+
+  int equal = 0;
+  int larger = 0;
+  int less = 0;
+
+  int journey_oa_count = 0;
+  int journey_tb_count = 0;
+  int journey_rp_count = 0;
+
+  location_idx_t end_location = tt.locations_.location_id_to_idx_.at({stop_list[i], src});
+
+  std::string filename =
+      outputDir + std::string(location_name(tt, end_location)) + "_" +
+      std::string(tt.locations_.names_[end_location].view()) + ".txt";
+  std::ofstream outputFile(filename);
+
+  if (!outputFile.is_open()) {
+    return;
+  }
+
+  for (auto& journey : results[end_location.v_]) {
+    journey.print(outputFile, tt);
+    outputFile << journey.bitfield_ << "\n";
+  }
+
+  for (int n_day = 0; n_day < n_days; n_day++) {
+    outputFile << "Day " << n_day << " (" << 0 << ":" << 24 << ")\n";
+
+    unixtime_t start_time = unixtime_t{sys_days{June / 11 / 2023}} + days{n_day} + hours{4};
+    unixtime_t end_time = unixtime_t{sys_days{June / 11 / 2023}} + days{n_day} + hours{5} + minutes{30};
+
+    pareto_set<routing::journey> results_oa;
+    tripbased_onetoall_correctness(
+        tt, results[end_location.v_], results_oa,
+        interval{start_time, end_time});
+
+    location_idx_t end = location_idx_t{end_location};
+    outputFile << "From: " << location_name(tt, start)
+               << " to: " << location_name(tt, end) << "_"
+               << std::string(tt.locations_.names_[end_location].view())
+               << "\n";
+
+    pareto_set<routing::journey> results_tb = tripbased_search_correctness(
+        tt, ts, start, end,
+        interval{
+            start_time,end_time});
+
+    pareto_set<routing::journey> results_rp = raptor_search(
+        tt, nullptr, start, end,
+        interval{start_time,end_time});
+
+    outputFile << "OA Trips:(" << results_oa.size() << ")\n";
+    for (auto& journey : results_oa) {
+      journey.print(outputFile, tt);
+    }
+    journey_oa_count += results_oa.size();
+
+    outputFile << "TB Trips:(" << results_tb.size() << ")\n";
+    for (auto& journey : results_tb) {
+      journey.print(outputFile, tt);
+    }
+    journey_tb_count += results_tb.size();
+
+
+    outputFile << "RP Trips:(" << results_rp.size() << ")\n";
+    for (auto& journey : results_rp) {
+      journey.print(outputFile, tt);
+    }
+    journey_rp_count += results_rp.size();
+
+
+    if (results_oa.size() == results_rp.size() &&
+        results_oa.size() == results_tb.size()) {
+      equal++;
+    } else if (results_oa.size() > results_rp.size() ||
+               results_oa.size() > results_tb.size()) {
+      larger++;
+    } else {
+      less++;
+    }
+
+    int equal_length = 0;
+    if(results_oa.size() > results_tb.size()) {
+      equal_length = 1;
+    } else if(results_oa.size() < results_tb.size()) {
+      equal_length = -1;
+    }
+    outputFile << "OA Size=" << results_oa.size()
+               << ", TB Size=" << results_tb.size()
+               << ", RP Size=" << results_rp.size()
+               << " All equal length=" << equal_length << "\n";
+    outputFile << "\n";
+  }
+  outputFile.close();
+
+  TBDL << "equal OA than other results: " << equal
+       << ", larger: " << larger
+       << ", less: " << less << "\n";
+  TBDL << "AMount of journeys: OA=" << journey_oa_count << ", TB=" << journey_tb_count << ", RP=" << journey_rp_count << "\n";
+}
+ */

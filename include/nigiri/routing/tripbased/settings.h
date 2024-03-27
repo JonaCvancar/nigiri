@@ -8,6 +8,9 @@
 // #define TB_MIN_WALK
 // #define TB_TRANSFER_CLASS
 #define EQUAL_JOURNEY
+#define TB_QUEUE_HANDLING
+#define TB_ONETOALL_BITFIELD_IDX
+#define TB_OA_ADD_ONTRIP
 
 #ifdef TB_TRANSFER_CLASS
 #define TB_TRANSFER_CLASS0 15
@@ -23,8 +26,8 @@
 #define TB_PREPRO_TRANSFER_REDUCTION
 
 // query engine options
-// #define TB_CACHE_PRESSURE_REDUCTION
-// #define TB_LOWER_BOUND
+#define TB_CACHE_PRESSURE_REDUCTION
+#define TB_LOWER_BOUND
 
 // system limits - number of bits
 #define BITFIELD_IDX_BITS 25U

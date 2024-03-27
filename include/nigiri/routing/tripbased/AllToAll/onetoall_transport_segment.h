@@ -13,17 +13,32 @@ namespace nigiri {
 namespace nigiri::routing::tripbased {
 
     struct onetoall_transport_segment {
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
         onetoall_transport_segment(transport_segment_idx_t transport_segment_idx,
                           stop_idx_t stop_idx_start,
                           stop_idx_t stop_idx_end,
                           std::uint32_t transferred_from,
-                          bitfield operating_days)
+                          bitfield_idx_t operating_days)
                 : transport_segment_idx_(transport_segment_idx),
                   stop_idx_start_(stop_idx_start),
                   stop_idx_end_(stop_idx_end),
                   operating_days_(operating_days),
                   transferred_from_(transferred_from)
                   {}
+#else
+      onetoall_transport_segment(transport_segment_idx_t transport_segment_idx,
+                                 stop_idx_t stop_idx_start,
+                                 stop_idx_t stop_idx_end,
+                                 std::uint32_t transferred_from,
+                                 bitfield operating_days)
+          : transport_segment_idx_(transport_segment_idx),
+            stop_idx_start_(stop_idx_start),
+            stop_idx_end_(stop_idx_end),
+            operating_days_(operating_days),
+            transferred_from_(transferred_from)
+      {}
+#endif
 
         day_idx_t get_transport_day(day_idx_t const base) const {
             return transport_day(base, transport_segment_idx_);
@@ -49,8 +64,12 @@ namespace nigiri::routing::tripbased {
         std::uint32_t stop_idx_start_ : STOP_IDX_BITS;
         std::uint32_t stop_idx_end_ : STOP_IDX_BITS;
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        bitfield_idx_t operating_days_;
+#else
         // Operating Days of trip segment
         bitfield operating_days_;
+#endif
 
         // queue index of the segment from which we transferred to this segment
         std::uint32_t transferred_from_;

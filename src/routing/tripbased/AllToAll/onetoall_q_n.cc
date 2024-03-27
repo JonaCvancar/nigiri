@@ -3,6 +3,8 @@
 #include "nigiri/routing/tripbased/AllToAll/onetoall_transport_segment.h"
 #include "nigiri/routing/tripbased/settings.h"
 
+#include "utl/get_or_create.h"
+
 using namespace nigiri;
 using namespace nigiri::routing::tripbased;
 
@@ -18,12 +20,23 @@ void onetoall_q_n::reset(day_idx_t new_base) {
   segments_.clear();
 }
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+bitfield_idx_t onetoall_q_n::get_or_create_bfi(bitfield const& bf) {
+  return utl::get_or_create(*bitfield_to_bitfield_idx_, bf, [&bf, this]() {
+    auto const bfi = tt_.register_bitfield(bf);
+    bitfield_to_bitfield_idx_->emplace(bf, bfi);
+    return bfi;
+  });
+}
+#endif
+
 bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
                            transport_idx_t const transport_idx,
                            std::uint16_t const stop_idx,
                            std::uint16_t const n_transfers,
                            std::uint32_t const transferred_from,
-                           bitfield operating_days) {
+                           bitfield operating_days)
+{
   assert(segments_.size() < std::numeric_limits<queue_idx_t>::max());
   assert(base_.has_value());
 
@@ -48,8 +61,16 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
 
         if(std::get<1>(tuple).any()) {
           // add transport segment
+#ifdef TB_ONETOALL_BITFIELD_IDX
+          auto idx = get_or_create_bfi(std::get<1>(tuple));
+
+          segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
+                                 transferred_from, idx);
+#else
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
                                  transferred_from, std::get<1>(tuple));
+#endif
+
 #ifndef NDEBUG
               TBDL << "Enqueued transport segment: ";
               print(TBDL, static_cast<queue_idx_t>(segments_.size() - 1));

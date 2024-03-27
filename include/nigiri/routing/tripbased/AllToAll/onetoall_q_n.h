@@ -10,9 +10,24 @@ namespace nigiri::routing::tripbased {
 
     struct onetoall_q_n {
         onetoall_q_n() = delete;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        explicit onetoall_q_n(onetoall_reached& r,
+                              timetable& tt
+                              ) : r_(r),
+                                  tt_(tt) {}
+#else
         explicit onetoall_q_n(onetoall_reached& r) : r_(r) {}
+#endif
 
         void reset(day_idx_t new_base);
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        bitfield_idx_t get_or_create_bfi(bitfield const& bf);
+
+        void set_bitfield_to_bitfield_idx(hash_map<bitfield, bitfield_idx_t>& bitfield_to_bitfield_idx) {
+          bitfield_to_bitfield_idx_= &bitfield_to_bitfield_idx;
+        }
+#endif
 
         bool enqueue(std::uint16_t const transport_day,
                      transport_idx_t const,
@@ -30,6 +45,12 @@ namespace nigiri::routing::tripbased {
         void print(std::ostream&, queue_idx_t const);
 
         onetoall_reached& r_;
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        timetable& tt_;
+        hash_map<bitfield, bitfield_idx_t>* bitfield_to_bitfield_idx_;
+#endif
+
         std::optional<day_idx_t> base_ = std::nullopt;
         std::vector<queue_idx_t> start_;
         std::vector<queue_idx_t> end_;

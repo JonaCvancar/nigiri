@@ -25,14 +25,18 @@ namespace nigiri {
 namespace nigiri::routing::tripbased {
 
     struct oneToAll_stats {
-        bool cache_pressure_reduction_{false};
-        bool lower_bound_pruning_{false};
+        bool  equal_journey_{false};
+        bool  tb_queue_handling_{false};
+        bool  tb_onetoall_bitfield_idx_{false};
+        bool  tb_oa_add_ontrip_{false};
         std::uint64_t n_segments_enqueued_{0U};
         std::uint64_t n_segments_pruned_{0U};
         std::uint64_t n_enqueue_prevented_by_reached_{0U};
         std::uint64_t n_journeys_found_{0U};
         std::uint64_t empty_n_{0U};
         bool max_transfers_reached_{false};
+        double pre_memory_usage_ = 0;
+        double peak_memory_usage_ = 0;
     };
 
     struct oneToAll_engine {
@@ -41,12 +45,22 @@ namespace nigiri::routing::tripbased {
 
         static constexpr bool kUseLowerBounds = false;
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        oneToAll_engine(timetable& tt,
+                        rt_timetable const* rtt,
+                        oneToAll_state& state,
+                        day_idx_t const base,
+                        hash_map<bitfield, bitfield_idx_t>& bitfieldMap);
+#else
         oneToAll_engine(timetable const& tt,
                         rt_timetable const* rtt,
                         oneToAll_state& state,
                         day_idx_t const base);
+#endif
 
         algo_stats_t get_stats() const { return stats_; }
+
+        void set_peak_memory(double peak_memory) { stats_.peak_memory_usage_ = peak_memory; }
 
         algo_state_t& get_state() { return state_; }
 
@@ -74,11 +88,20 @@ namespace nigiri::routing::tripbased {
             state_.query_starts_.emplace_back(l, t, bf);
         }
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        void execute(unixtime_t const start_time,
+                     std::uint8_t const max_transfers,
+                     unixtime_t const worst_time_at_dest,
+                     std::vector<pareto_set<journey_bitfield>>& results,
+                     hash_map<bitfield, bitfield_idx_t>& bitfieldMap
+                     );
+#else
         void execute(unixtime_t const start_time,
                      std::uint8_t const max_transfers,
                      unixtime_t const worst_time_at_dest,
                      std::vector<pareto_set<journey_bitfield>>& results
-                     );
+        );
+#endif
 
     private:
         void handle_start(oneToAll_start const&, unixtime_t const);
@@ -106,10 +129,17 @@ namespace nigiri::routing::tripbased {
 
         bool is_start_location(query const&, location_idx_t const) const;
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        timetable& tt_;
+#else
         timetable const& tt_;
+#endif
         rt_timetable const* rtt_;
         oneToAll_state& state_;
         day_idx_t const base_;
         oneToAll_stats stats_;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        hash_map<bitfield, bitfield_idx_t>& bitfield_to_bitfield_idx_;
+#endif
     };
 }

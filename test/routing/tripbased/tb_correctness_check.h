@@ -14,7 +14,27 @@
 
 namespace nigiri::test {
 
+std::vector<std::string> get_locations(std::string file_path) {
+  std::ifstream file(file_path); // Change "input.txt" to your file name
 
+  std::vector<std::string> firstColumn;
+
+  if (!file.is_open()) {
+    std::cerr << "Error opening file!" << std::endl;
+    return firstColumn;
+  }
+
+  std::string line;
+  while (std::getline(file, line)) {
+    std::istringstream iss(line);
+    std::string element;
+    if (iss >> element) {
+      firstColumn.push_back(element);
+    }
+  }
+
+  return firstColumn;
+}
 
 void tripbased_onetoall_correctness(
 //void tripbased_onetoall_correctness(

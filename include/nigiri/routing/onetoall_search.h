@@ -53,6 +53,7 @@ namespace nigiri::routing {
         static constexpr auto const kFwd = (SearchDir == direction::kForward);
         static constexpr auto const kBwd = (SearchDir == direction::kBackward);
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
         Algo init(algo_state_t& algo_state) {
             return Algo{
                     tt_,
@@ -60,14 +61,34 @@ namespace nigiri::routing {
                     algo_state,
                     day_idx_t{std::chrono::duration_cast<date::days>(
                             search_interval_.from_ - tt_.internal_interval().from_)
-                                      .count()}};
+                                      .count()},
+                    bitfield_to_bitfield_idx_};
         }
+#else
+        Algo init(algo_state_t& algo_state) {
+          return Algo{
+              tt_,
+              rtt_,
+              algo_state,
+              day_idx_t{std::chrono::duration_cast<date::days>(
+                            search_interval_.from_ - tt_.internal_interval().from_)
+                            .count()}};
+        }
+#endif
 
-        onetoall_search(timetable const& tt,
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        onetoall_search(timetable& tt,
                rt_timetable const* rtt,
                onetoall_search_state& s,
                algo_state_t& algo_state,
                onetoall_query q)
+#else
+        onetoall_search(timetable const& tt,
+                        rt_timetable const* rtt,
+                        onetoall_search_state& s,
+                        algo_state_t& algo_state,
+                        onetoall_query q)
+#endif
                 : tt_{tt},
                   rtt_{rtt},
                   state_{s},
@@ -89,7 +110,18 @@ namespace nigiri::routing {
 
             state_.starts_.clear();
             // checks for lines departing from starts location and adds their start times to state starts
+#ifdef TB_OA_ADD_ONTRIP
             add_start_labels(q_.start_time_, true);
+#else
+            add_start_labels(q_.start_time_, false);
+#endif
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+            for (bitfield_idx_t bfi{0U}; bfi < tt_.bitfields_.size();
+                 ++bfi) {  // bfi: bitfield index
+              bitfield_to_bitfield_idx_.emplace(tt_.bitfields_[bfi], bfi);
+            }
+#endif
 
             while (true) {
                 trace("start_time={}\n", search_interval_);
@@ -182,6 +214,10 @@ namespace nigiri::routing {
               }
             }
 
+            rusage r_usage;
+            getrusage(RUSAGE_SELF, &r_usage);
+            algo_.set_peak_memory(static_cast<double>(r_usage.ru_maxrss) / 1e6);
+
             return {.journeys_ = &state_.results_,
                     .interval_ = search_interval_,
                     .search_stats_ = stats_,
@@ -251,18 +287,31 @@ namespace nigiri::routing {
                         auto const worst_time_at_dest =
                                 start_time +
                                 (kFwd ? 1 : -1) * kMaxTravelTime;
+#ifdef TB_ONETOALL_BITFIELD_IDX
                         algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
-                                     state_.results_);
+                                     state_.results_, bitfield_to_bitfield_idx_);
+#else
+                        algo_.execute(start_time, q_.max_transfers_, worst_time_at_dest,
+                                      state_.results_);
+#endif
                     });
         }
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        timetable& tt_;
+#else
         timetable const& tt_;
+#endif
         rt_timetable const* rtt_;
         onetoall_search_state& state_;
         onetoall_query q_;
         interval<unixtime_t> search_interval_;
         onetoall_search_stats stats_;
         Algo algo_;
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        hash_map<bitfield, bitfield_idx_t> bitfield_to_bitfield_idx_{};
+#endif
     };
 
 }  // namespace nigiri::routing

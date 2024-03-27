@@ -1,5 +1,7 @@
 #include <ranges>
 
+#include "utl/get_or_create.h"
+
 #include "nigiri/routing/for_each_meta.h"
 #include "nigiri/routing/journey_bitfield.h"
 #include "nigiri/routing/tripbased/dbg.h"
@@ -13,6 +15,40 @@ using namespace nigiri;
 using namespace nigiri::routing;
 using namespace nigiri::routing::tripbased;
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+oneToAll_engine::oneToAll_engine(timetable& tt,
+                                 rt_timetable const* rtt,
+                                 oneToAll_state& state,
+                                 day_idx_t const base,
+                                 hash_map<bitfield, bitfield_idx_t>& bitfieldMap)
+    : tt_{tt},
+      rtt_{rtt},
+      state_{state},
+      base_{base},
+      bitfield_to_bitfield_idx_{bitfieldMap}
+{
+#ifdef EQUAL_JOURNEY
+  stats_.equal_journey_ = true;
+#endif
+#ifdef TB_QUEUE_HANDLING
+  stats_.tb_queue_handling_ = true;
+#endif
+#ifdef TB_ONETOALL_BITFIELD_IDX
+  stats_.tb_onetoall_bitfield_idx_ = true;
+#endif
+#ifdef TB_OA_ADD_ONTRIP
+  stats_.tb_oa_add_ontrip_ = true;
+#endif
+
+  rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  stats_.pre_memory_usage_ = static_cast<double>(r_usage.ru_maxrss) / 1e6;
+
+  // reset state for new query
+  state_.reset(base);
+  state_.q_n_.set_bitfield_to_bitfield_idx(bitfieldMap);
+}
+#else
 oneToAll_engine::oneToAll_engine(timetable const& tt,
                                  rt_timetable const* rtt,
                                  oneToAll_state& state,
@@ -20,27 +56,55 @@ oneToAll_engine::oneToAll_engine(timetable const& tt,
     : tt_{tt},
       rtt_{rtt},
       state_{state},
-      base_{base} {
+      base_{base}
+{
+#ifdef EQUAL_JOURNEY
+  stats_.equal_journey_ = true;
+#endif
+#ifdef TB_QUEUE_HANDLING
+  stats_.tb_queue_handling_ = true;
+#endif
+#ifdef TB_ONETOALL_BITFIELD_IDX
+  stats_.tb_onetoall_bitfield_idx_ = true;
+#endif
+#ifdef TB_OA_ADD_ONTRIP
+  stats_.tb_oa_add_ontrip_ = true;
+#endif
+
+  rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  stats_.pre_memory_usage_ = static_cast<double>(r_usage.ru_maxrss) / 1e6;
 
   // reset state for new query
   state_.reset(base);
 }
+#endif
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
 void oneToAll_engine::execute(unixtime_t const start_time,
                               std::uint8_t const max_transfers,
                               unixtime_t const worst_time_at_dest,
-                              std::vector<pareto_set<journey_bitfield>>& results
-) {
-  (void)results;
+                              std::vector<pareto_set<journey_bitfield>>& results,
+                              hash_map<bitfield, bitfield_idx_t>& bitfieldMap)
+#else
+void oneToAll_engine::execute(unixtime_t const start_time,
+                              std::uint8_t const max_transfers,
+                              unixtime_t const worst_time_at_dest,
+                              std::vector<pareto_set<journey_bitfield>>& results)
+#endif
+{
+#ifdef TB_ONETOALL_BITFIELD_IDX
+  bitfield_to_bitfield_idx_ = bitfieldMap;
+#endif
 
-//#ifndef NDEBUG
+#ifndef NDEBUG
   TBDL << "Executing with start_time: " << unix_dhhmm(tt_, start_time)
        << ", max_transfers: " << std::to_string(max_transfers)
        << ", worst_time_at_dest: " << unix_dhhmm(tt_, worst_time_at_dest)
        << ", Initializing Q_0...\n";
-/*#else
-  //(void)start_time;
-#endif*/
+#else
+  (void)start_time;
+#endif
 
   // init Q_0
   for (auto const& qs : state_.query_starts_) {
@@ -51,13 +115,20 @@ void oneToAll_engine::execute(unixtime_t const start_time,
   // n transfers
   std::uint8_t n = 0U;
   for (; n != state_.q_n_.start_.size() && n < max_transfers; ++n) {
+#ifndef NDEBUG
     TBDL << "Handle " << std::to_string(state_.q_n_.end_[n] - state_.q_n_.start_[n]) << " Segments after n=" << std::to_string(n) << " transfers.\n";
+#endif
+
+#ifdef TB_QUEUE_HANDLING
+    stats_.n_segments_enqueued_ += state_.q_n_.size();
+#endif
     // iterate trip segments in Q_n
     for (auto q_cur = state_.q_n_.start_[n]; q_cur != state_.q_n_.end_[n];
          ++q_cur) {
       handle_segment(start_time, worst_time_at_dest, results, n, q_cur);
     }
 
+#ifdef TB_QUEUE_HANDLING
     state_.q_n_.erase(state_.q_n_.start_[n], state_.q_n_.end_[n]);
 
     std::uint8_t n2 = n + 1;
@@ -68,15 +139,21 @@ void oneToAll_engine::execute(unixtime_t const start_time,
     }
     state_.q_n_.start_[n2] = 0;
     state_.q_n_.end_[n2] = 0;
+#endif
   }
 
+#ifndef NDEBUG
   int count = 0;
   for(const auto& element : results) {
     count += element.size();
   }
 
   TBDL <<  "Finished all segments. Results count: " << count << " Que length: " << state_.q_n_.size() << "\n";
+#endif
+
+#ifndef TB_QUEUE_HANDLING
   stats_.n_segments_enqueued_ += state_.q_n_.size();
+#endif
   stats_.empty_n_ = n;
   stats_.max_transfers_reached_ = n == max_transfers;
 }
@@ -85,7 +162,8 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
                                      unixtime_t const worst_time_at_dest,
                                      std::vector<pareto_set<journey_bitfield>>& results,
                                      std::uint8_t const n,
-                                     queue_idx_t const q_cur) {
+                                     queue_idx_t const q_cur)
+{
   // the current transport segment
   auto seg = state_.q_n_[q_cur];
 
@@ -109,6 +187,8 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
 
   // the day index of the segment
   std::int32_t const d_seg = seg.get_transport_day(base_).v_;
+  auto const day_offset = nigiri::routing::tripbased::compute_day_offset(base_.v_, static_cast<uint16_t>(d_seg));
+
   // departure time at start of current transport segment in minutes after
   // midnight on the day of the query
   auto const tau_d = (d_seg + tau_dep_t_b_d - base_.v_) * 1440 + tau_dep_t_b_tod;
@@ -129,7 +209,11 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
            << dhhmm(tau_d_temp) << "\n";
 #endif*/
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+      auto [non_dominated_tmin, tmin_begin, tmin_end] = state_.t_min_[location_id.v_][n].add_bitfield(oneToAll_tMin{t_cur, tt_.bitfields_[seg.operating_days_]});
+#else
       auto [non_dominated_tmin, tmin_begin, tmin_end] = state_.t_min_[location_id.v_][n].add_bitfield(oneToAll_tMin{t_cur, seg.operating_days_});
+#endif
 
       if(non_dominated_tmin) {
         // add journey without reconstructing yet
@@ -138,7 +222,11 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         j.dest_time_ = t_cur;
         j.dest_ = location_id;
         j.transfers_ = n;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        j.bitfield_ = tt_.bitfields_[seg.operating_days_];
+#else
         j.bitfield_ = seg.operating_days_;
+#endif
 
         if (j.travel_time() < kMaxTravelTime) {
 // add journey to pareto set (removes dominated entries)
@@ -157,6 +245,9 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
           ++stats_.n_journeys_found_;
 #endif
         }
+      } else {
+        stats_.n_segments_pruned_++;
+        continue;
       }
     }
 
@@ -166,7 +257,12 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         continue;
       }
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+      auto [non_dominated, begin, end] = state_.t_min_[fp.target().v_][n].add_bitfield(oneToAll_tMin{t_cur + i32_minutes{fp.duration_}, tt_.bitfields_[seg.operating_days_]});
+#else
       auto [non_dominated, begin, end] = state_.t_min_[fp.target().v_][n].add_bitfield(oneToAll_tMin{t_cur + i32_minutes{fp.duration_}, seg.operating_days_});
+#endif
+
       if(non_dominated) {
         // add journey without reconstructing yet
         journey_bitfield j{};
@@ -174,11 +270,23 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         j.dest_time_ = t_cur + i32_minutes{fp.duration_};
         j.dest_ = fp.target();
         j.transfers_ = n;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        j.bitfield_ = tt_.bitfields_[seg.operating_days_];
+#else
         j.bitfield_ = seg.operating_days_;
+#endif
 
         if (j.travel_time() < kMaxTravelTime) {
-          results[fp.target_].add_bitfield(std::move(j));
-          ++stats_.n_journeys_found_;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+          auto [non_dominated_tmin, tmin_begin, tmin_end] = state_.t_min_[location_id.v_][n].add_bitfield(oneToAll_tMin{t_cur, tt_.bitfields_[seg.operating_days_]});
+#else
+          auto [non_dominated_tmin, tmin_begin, tmin_end] = state_.t_min_[location_id.v_][n].add_bitfield(oneToAll_tMin{t_cur, seg.operating_days_});
+#endif
+
+          if(non_dominated_tmin) {
+            results[fp.target_].add_bitfield(std::move(j));
+            ++stats_.n_journeys_found_;
+          }
         }
       }
     }
@@ -189,7 +297,20 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         auto const& theta = tt_.bitfields_[transfer.get_bitfield_idx()];
 
         // bitfield new_operating_days = seg.operating_days_ & (theta >> transfer.passes_midnight_);
-        bitfield new_operating_days = seg.operating_days_ & theta;
+        bitfield new_operating_days = bitfield();
+        if(day_offset == 6) {
+#ifdef TB_ONETOALL_BITFIELD_IDX
+          new_operating_days = tt_.bitfields_[seg.operating_days_] & (theta >> 1);
+#else
+          new_operating_days = seg.operating_days_ & (theta >> 1);
+#endif
+        } else {
+#ifdef TB_ONETOALL_BITFIELD_IDX
+          new_operating_days = tt_.bitfields_[seg.operating_days_] & theta;
+#else
+          new_operating_days = seg.operating_days_ & theta;
+#endif
+        }
 
         if(!new_operating_days.any()) {
           continue;
@@ -206,6 +327,26 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
 
         auto const d_tr = d_seg + tau_arr_t_i / 1440 - tau_dep_u_j / 1440 +
                           transfer.passes_midnight_;
+
+        /*
+        auto const travel_time_next =
+            tt_.event_mam(transfer.get_transport_idx_to(),
+                          transfer.stop_idx_to_ + 1, event_type::kArr)
+                .count() - tau_dep_u_j;
+
+        auto const unix_time_next = tt_.to_unixtime(base_, minutes_after_midnight_t{tau_d_temp + travel_time_next});
+
+        auto const stop_next = stop{tt_.route_location_seq_[tt_.transport_route_[transfer.get_transport_idx_to()]][transfer.stop_idx_to_ + 1]};
+        auto const location_next_id = stop_next.location_idx();
+
+        auto non_dominated_tmin =
+            state_.t_min_[location_next_id.v_][n + 1].check(oneToAll_tMin{unix_time_next, new_operating_days});
+
+        if(!non_dominated_tmin) {
+          stats_.n_segments_pruned_++;
+          continue;
+        }
+        */
 
 /*#ifndef NDEBUG
         TBDL << "Found a transfer to transport "
@@ -241,7 +382,8 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
   }
 }
 
-void oneToAll_engine::handle_start(oneToAll_start const& start, unixtime_t const worst_time_at_dest) {
+void oneToAll_engine::handle_start(oneToAll_start const& start, unixtime_t const worst_time_at_dest)
+{
 
   // start day and time
   auto const day_idx_mam = tt_.day_idx_mam(start.time_);
@@ -279,7 +421,8 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
                                             std::int32_t const tau,
                                             bitfield const bf,
                                             footpath const fp,
-                                            unixtime_t const worst_time_at_dest) {
+                                            unixtime_t const worst_time_at_dest)
+{
   // arrival time after walking the footpath
   auto const alpha = tau + fp.duration().count();
   auto const alpha_d = alpha / 1440;

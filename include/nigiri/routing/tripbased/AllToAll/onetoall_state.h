@@ -41,8 +41,19 @@ namespace nigiri::routing::tripbased {
 
     struct oneToAll_state {
         oneToAll_state() = delete;
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        oneToAll_state(timetable& tt, transfer_set const& ts)
+                : ts_{ts},
+              r_{tt},
+              q_n_{r_, tt}
+#else
         oneToAll_state(timetable const& tt, transfer_set const& ts)
-                : ts_{ts}, r_{tt}, q_n_{r_} {
+            : ts_{ts},
+              r_{tt},
+              q_n_{r_}
+#endif
+        {
             t_min_.resize(tt.n_locations());
 
             bitfield bf_1 = bitfield();
