@@ -19,12 +19,14 @@ namespace nigiri::routing::tripbased {
                           stop_idx_t stop_idx_start,
                           stop_idx_t stop_idx_end,
                           std::uint32_t transferred_from,
-                          bitfield_idx_t operating_days)
+                          bitfield_idx_t operating_days,
+                                 std::vector<std::string_view > trip_names)
                 : transport_segment_idx_(transport_segment_idx),
                   stop_idx_start_(stop_idx_start),
                   stop_idx_end_(stop_idx_end),
                   operating_days_(operating_days),
-                  transferred_from_(transferred_from)
+                  transferred_from_(transferred_from),
+                  trip_names_(trip_names)
                   {}
 #else
       onetoall_transport_segment(transport_segment_idx_t transport_segment_idx,
@@ -73,6 +75,8 @@ namespace nigiri::routing::tripbased {
 
         // queue index of the segment from which we transferred to this segment
         std::uint32_t transferred_from_;
+
+        std::vector<std::string_view> trip_names_;
 
 #ifdef TB_CACHE_PRESSURE_REDUCTION
         union {

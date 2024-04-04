@@ -1055,7 +1055,7 @@ TEST(oa_correctness, test_bitfield_idx) {
 
   location_idx_t start =
       tt.locations_.location_id_to_idx_.at({"0001008", src}); // Aachen Hbf
-      //tt.locations_.location_id_to_idx_.at({"0001573", src}); // Kirschbäumchen
+  //tt.locations_.location_id_to_idx_.at({"0001573", src}); // Kirschbäumchen
 
   TBDL << "From: " << location_name(tt, start)
        << "\n";
@@ -1082,7 +1082,206 @@ TEST(oa_correctness, test_bitfield_idx) {
   }
   TBDL << "Number of trips in total: " << count
        << " Max Transfers: " << max_transfers << "\n";
+
+  std::string outputDir = "/home/jona/uni/thesis/";
+
+  int count_less = 0;
+  int count_larger = 0;
+  int count_equal = 0;
+  int count_equal_diffs = 0;
+
+  for(unsigned long idx = 10; idx < 11; ++idx) {
+    location_idx_t location = location_idx_t{idx};
+    std::string filename =
+        outputDir + std::to_string(location.v_) + ".txt";
+    std::ofstream outputFile(filename);
+
+    outputFile << location.v_ << " To: " << location_name(tt, location) << "\n";
+    std::cout << location.v_ << " To: " << location_name(tt, location) << "\n";
+
+    if(results[location.v_].size()) {
+      for(auto& journey : results[location.v_]) {
+        journey.print(outputFile, tt);
+        outputFile << journey.bitfield_ << "\n";
+      }
+      outputFile << "\n";
+    }
+
+    for (int day = 0; day < tt.date_range_.size().count(); day++) {
+      //for (int day = 0; day < 50; day++) {
+      //TBDL << "Day " << day << "\n";
+      pareto_set<routing::journey> results_oa;
+      tripbased_onetoall_correctness(
+          tt, results[location.v_], results_oa,
+          interval{
+              unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{0},
+              unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{23} +
+              minutes{59}});
+
+      pareto_set<routing::journey> results_tb = tripbased_search_correctness(
+          tt, ts, start, location,
+          interval{
+              unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{0},
+              unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{23} +
+              minutes{59}});
+
+      pareto_set<routing::journey> results_rp = raptor_search(
+          tt, nullptr, start, location,
+          interval{
+              unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{0},
+              unixtime_t{sys_days{June / 11 / 2023}} + days{day} + hours{23} +
+                  minutes{59}});
+
+      if(results_oa.size() == 0 && results_tb.size() == 0) {
+        continue;
+      }
+
+      bool output_all = false;
+      if(output_all) {
+        outputFile << "Day: " << day << "\n";
+
+        outputFile << "OA:\n";
+        for (auto j_oa : results_oa) {
+          j_oa.print(outputFile, tt);
+        }
+
+        outputFile << "TB:\n";
+        for (auto& j_tb : results_tb) {
+          j_tb.print(outputFile, tt);
+        }
+
+        outputFile << "RP:\n";
+        for (auto& j_rp : results_rp) {
+          j_rp.print(outputFile, tt);
+        }
+      } else {
+        if(results_oa.size() != results_tb.size()) {
+          if(results_oa.size() > results_tb.size()) {
+            count_larger++;
+          } else {
+            count_less++;
+          }
+          outputFile << "Diff: Day: " << day << ", TB: " << results_tb.size() << ", OA: " << results_oa.size() << "\n";
+          bool print_all_diff = true;
+          if(print_all_diff) {
+            outputFile << "OA:\n";
+            for (auto j_oa : results_oa) {
+              j_oa.print(outputFile, tt);
+            }
+
+            outputFile << "TB:\n";
+            for (auto& j_tb : results_tb) {
+              j_tb.print(outputFile, tt);
+            }
+
+            outputFile << "RP:\n";
+            for (auto& j_rp : results_rp) {
+              j_rp.print(outputFile, tt);
+            }
+          } else {
+            std::vector<routing::journey> diff_oa;
+            std::vector<routing::journey> diff_tb;
+            for (auto& j1 : results_oa) {
+              bool exists = false;
+              for (auto& j2 : results_tb) {
+                if (j1.transfers_ == j2.transfers_ &&
+                    tt.day_idx_mam(j1.start_time_).second.count() ==
+                        tt.day_idx_mam(j2.start_time_).second.count() &&
+                    tt.day_idx_mam(j1.dest_time_).second.count() ==
+                        tt.day_idx_mam(j2.dest_time_).second.count()) {
+                  exists = true;
+                }
+              }
+              if (!exists) {
+                diff_oa.emplace_back(j1);
+              }
+            }
+            for (auto& j1 : results_tb) {
+              bool exists = false;
+              for (auto& j2 : results_oa) {
+                if (j1.transfers_ == j2.transfers_ &&
+                    tt.day_idx_mam(j1.start_time_).second.count() ==
+                        tt.day_idx_mam(j2.start_time_).second.count() &&
+                    tt.day_idx_mam(j1.dest_time_).second.count() ==
+                        tt.day_idx_mam(j2.dest_time_).second.count()) {
+                  exists = true;
+                }
+              }
+              if (!exists) {
+                diff_tb.emplace_back(j1);
+              }
+            }
+            if (diff_oa.size()) {
+              outputFile << "OA:\n";
+              for (auto& j : diff_oa) {
+                j.print(outputFile, tt);
+              }
+            }
+            if (diff_tb.size()) {
+              outputFile << "TB:\n";
+              for (auto& j : diff_tb) {
+                j.print(outputFile, tt);
+              }
+            }
+          }
+        } else {
+          count_equal++;
+          bool first = false;
+          for(size_t i = 0; i < results_oa.size(); ++i) {
+            if (results_oa[i].transfers_ == results_tb[i].transfers_ &&
+                tt.day_idx_mam(results_oa[i].start_time_).second.count() ==
+                tt.day_idx_mam(results_tb[i].start_time_).second.count() &&
+                tt.day_idx_mam(results_oa[i].dest_time_).second.count() ==
+                tt.day_idx_mam(results_tb[i].dest_time_).second.count()) {
+              continue;
+            } else {
+              int check = false;
+              for(auto j_oa : results_oa) {
+                if(j_oa.transfers_ == results_tb[i].transfers_ &&
+                   tt.day_idx_mam(j_oa.start_time_).second.count() ==
+                   tt.day_idx_mam(results_tb[i].start_time_).second.count() &&
+                   tt.day_idx_mam(j_oa.dest_time_).second.count() ==
+                   tt.day_idx_mam(results_tb[i].dest_time_).second.count()) {
+                  check = true;
+                }
+              }
+              if(!check) {
+                if(!first) {
+                  outputFile << "Day: " << day << "Equal\n";
+                  first = true;
+                }
+                results_tb[i].print(outputFile, tt);
+              }
+              check = false;
+              for(auto j_tb : results_tb) {
+                if(j_tb.transfers_ == results_oa[i].transfers_ &&
+                   tt.day_idx_mam(j_tb.start_time_).second.count() ==
+                   tt.day_idx_mam(results_oa[i].start_time_).second.count() &&
+                   tt.day_idx_mam(j_tb.dest_time_).second.count() ==
+                   tt.day_idx_mam(results_oa[i].dest_time_).second.count()) {
+                  check = true;
+                }
+              }
+              if(!check) {
+                if(!first) {
+                  outputFile << "Day: " << day << "Equal\n";
+                  first = true;
+                }
+                results_oa[i].print(outputFile, tt);
+              }
+            }
+          }
+          if(first) {
+            count_equal_diffs++;
+          }
+        }
+      }
+    }
+    outputFile.close();
+  }
+  std::cout << "Count less: " << count_less << ", Count larger: " << count_larger << ", Count equal: " << count_equal << ", Count equal diff: " << count_equal_diffs << "\n";
 }
+
 
 /*
 TEST(oa_correctness, zero_trips) {

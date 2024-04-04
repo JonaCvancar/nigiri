@@ -39,9 +39,6 @@ namespace nigiri::routing {
         bool use_start_footpaths_{true};
         std::vector<offset> start_;
         std::uint8_t max_transfers_{kMaxTransfers};
-        unsigned min_connection_count_{0U};
-        bool extend_interval_earlier_{false};
-        bool extend_interval_later_{false};
     };
 
 }  // namespace nigiri::routing

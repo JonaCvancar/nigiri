@@ -36,7 +36,7 @@ std::pair<typename Collection::iterator, bool> insert_sorted(
 }
 
 template <typename Less>
-void onetoall_add_start_times_at_stop(direction const search_dir,
+bitfield onetoall_add_start_times_at_stop(direction const search_dir,
                              timetable const& tt,
                              rt_timetable const* rtt,
                              route_idx_t const route_idx,
@@ -45,7 +45,10 @@ void onetoall_add_start_times_at_stop(direction const search_dir,
                              interval<unixtime_t> const& interval_with_offset,
                              duration_t const offset,
                              std::vector<onetoall_start>& starts,
+                                      bool const add_ontrip,
                              Less&& less) {
+  bitfield on_trip_days = bitfield();
+
   auto const first_day_idx = tt.day_idx_mam(interval_with_offset.from_).first;
   auto const last_day_idx = tt.day_idx_mam(interval_with_offset.to_).first;
   trace_start(
@@ -80,10 +83,13 @@ void onetoall_add_start_times_at_stop(direction const search_dir,
                                            : ev_time + offset,
               .time_at_stop_ = ev_time,
               .stop_ = location_idx,
-              .bitfield_ = traffic_days},
+              .bitfield_ = (traffic_days << day_offset)},
           std::forward<Less>(less));
 
       if(inserted){
+        if(add_ontrip) {
+          on_trip_days = on_trip_days | (traffic_days << day_offset);
+        }
         trace_start(
             "        => ADD START: time_at_start={}, time_at_stop={}, "
             "stop={}, inserted={}\n",
@@ -110,6 +116,8 @@ void onetoall_add_start_times_at_stop(direction const search_dir,
               tt.to_unixtime(first_day_idx, stop_time.as_duration())));
     }
   }
+
+  return on_trip_days;
 }
 
 template <typename Less>
@@ -155,28 +163,41 @@ void onetoall_add_starts_in_interval(direction const search_dir,
       }
 
       trace_start("    -> no skip -> add_start_times_at_stop()\n");
-      onetoall_add_start_times_at_stop(
+      bitfield on_trip_days = onetoall_add_start_times_at_stop(
           search_dir, tt, rtt, r, static_cast<stop_idx_t>(i),
           stop{s}.location_idx(),
           search_dir == direction::kForward ? interval + d : interval - d, d,
-          starts, std::forward<Less>(cmp));
+          starts, add_ontrip, std::forward<Less>(cmp));
+
+      if(add_ontrip) {
+        insert_sorted(starts,
+                      onetoall_start{.time_at_start_ = search_dir == direction::kForward
+                                                           ? interval.to_
+                                                           : interval.from_ - 1_minutes,
+                                     .time_at_stop_ = search_dir == direction::kForward
+                                                          ? interval.to_ + d
+                                                          : interval.from_ - 1_minutes - d,
+                                     .stop_ = l,
+                                     .bitfield_ = on_trip_days},
+                      cmp);
+      }
     }
   }
 
+  /*
   // Add one earliest arrival query at the end of the interval. This is only
   // used to dominate journeys from the interval that are suboptimal
   // considering a journey from outside the interval (i.e. outside journey
   // departs later and arrives at the same time). These journeys outside the
   // interval will be filtered out before returning the result.
   //trace_start("Length of starts before on_trip(): {}\n", starts.size());
-  /*trace_start("add_ontrip(): time_at_start={}, time_at_Stop= {} at {}\n", search_dir == direction::kForward
+  trace_start("add_ontrip(): time_at_start={}, time_at_Stop= {} at {}\n", search_dir == direction::kForward
         ? interval.to_
         : interval.from_ - 1_minutes,
         search_dir == direction::kForward
         ? interval.to_ + d
         : interval.from_ - 1_minutes - d,
         l);
-        */
   bitfield bf_1 = bitfield();
   for(unsigned int bf_idx = 0; bf_idx < bf_1.size(); bf_idx++) {
     bf_1.set(size_t{bf_idx}, true);
@@ -194,6 +215,7 @@ void onetoall_add_starts_in_interval(direction const search_dir,
                       .bitfield_ = bf_1},
                   cmp);
   }
+  */
   //trace_start("Length of starts after on_trip(): {}\n", starts.size());
 }
 
@@ -229,9 +251,9 @@ void onetoall_get_starts(direction const search_dir,
 
   auto const cmp = [&](onetoall_start const& a, onetoall_start const& b) {
     if (fwd) {
-      return std::tie(b.time_at_stop_, b.time_at_start_) < std::tie(a.time_at_stop_, a.time_at_start_);
+      return std::tie(b.time_at_start_, b.time_at_stop_, b.stop_) < std::tie(a.time_at_start_, a.time_at_stop_, a.stop_);
     } else {
-      return std::tie(a.time_at_stop_, a.time_at_start_) < std::tie(b.time_at_stop_, b.time_at_start_);
+      return std::tie(a.time_at_start_, a.time_at_stop_, a.stop_) < std::tie(b.time_at_start_, b.time_at_stop_, b.stop_);
     }
   };
 
@@ -258,6 +280,13 @@ void onetoall_get_starts(direction const search_dir,
                    }},
                start_time);
   }
+
+  /*
+  for(auto& start : starts) {
+    std::cout << "start: " << start.time_at_start_ << ", time_at_stop: " << start.time_at_stop_ << ", stop: " << start.stop_ << "\n";
+    std::cout << start.bitfield_ << "\n";
+  }
+   */
 }
 
 }  // namespace nigiri::routing

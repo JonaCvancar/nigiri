@@ -34,8 +34,7 @@ namespace nigiri::routing {
     };
 
     struct onetoall_search_stats {
-        std::uint64_t search_iterations_{0ULL};
-        std::uint64_t interval_extensions_{0ULL};
+        std::uint32_t n_results_in_interval{0U};
     };
 
     template <typename AlgoStats>
@@ -123,84 +122,7 @@ namespace nigiri::routing {
             }
 #endif
 
-            while (true) {
-                trace("start_time={}\n", search_interval_);
-
-                search_interval();
-
-                if (is_ontrip() || max_interval_reached() ||
-                    n_results_in_interval() >= q_.min_connection_count_) {
-                    trace(
-                            "  finished: is_ontrip={}, max_interval_reached={}, "
-                            "extend_earlier={}, extend_later={}, initial={}, interval={}, "
-                            "timetable={}, number_of_results_in_interval={}\n",
-                            is_ontrip(), max_interval_reached(), q_.extend_interval_earlier_,
-                            q_.extend_interval_later_,
-                            std::visit(
-                                    utl::overloaded{
-                                            [](interval<unixtime_t> const& start_interval) {
-                                                return start_interval;
-                                            },
-                                            [](unixtime_t const start_time) {
-                                                return interval<unixtime_t>{start_time, start_time};
-                                            }},
-                                    q_.start_time_),
-                            search_interval_, tt_.external_interval(), n_results_in_interval());
-                    break;
-                } else {
-                    trace(
-                            "  continue: max_interval_reached={}, extend_earlier={}, "
-                            "extend_later={}, initial={}, interval={}, timetable={}, "
-                            "number_of_results_in_interval={}\n",
-                            max_interval_reached(), q_.extend_interval_earlier_,
-                            q_.extend_interval_later_,
-                            std::visit(
-                                    utl::overloaded{
-                                            [](interval<unixtime_t> const& start_interval) {
-                                                return start_interval;
-                                            },
-                                            [](unixtime_t const start_time) {
-                                                return interval<unixtime_t>{start_time, start_time};
-                                            }},
-                                    q_.start_time_),
-                            search_interval_, tt_.external_interval(), n_results_in_interval());
-                }
-
-                state_.starts_.clear();
-
-                auto const new_interval = interval{
-                        q_.extend_interval_earlier_ ? tt_.external_interval().clamp(
-                                search_interval_.from_ - 60_minutes)
-                                                    : search_interval_.from_,
-                        q_.extend_interval_later_
-                        ? tt_.external_interval().clamp(search_interval_.to_ + 60_minutes)
-                        : search_interval_.to_};
-                trace("interval adapted: {} -> {}\n", search_interval_, new_interval);
-
-                if (new_interval.from_ != search_interval_.from_) {
-                    add_start_labels(interval{new_interval.from_, search_interval_.from_},
-                                     kBwd);
-                    if constexpr (kBwd) {
-                        trace("dir=BWD, interval extension earlier -> reset state\n");
-                        algo_.reset_arrivals();
-                        remove_ontrip_results();
-                    }
-                }
-
-                if (new_interval.to_ != search_interval_.to_) {
-                    add_start_labels(interval{search_interval_.to_, new_interval.to_},
-                                     kFwd);
-                    if constexpr (kFwd) {
-                        trace("dir=BWD, interval extension later -> reset state\n");
-                        algo_.reset_arrivals();
-                        remove_ontrip_results();
-                    }
-                }
-
-                search_interval_ = new_interval;
-
-                ++stats_.search_iterations_;
-            }
+            search_interval();
 
             if (is_pretrip()) {
               for(auto& stop : state_.results_) {
@@ -209,10 +131,12 @@ namespace nigiri::routing {
                          j.travel_time() > kMaxTravelTime;
                 });
                 utl::sort(stop, [](journey_bitfield const& a, journey_bitfield const& b) {
-                  return a.start_time_ < b.start_time_;
+                  return std::tie(a.start_time_, a.dest_time_) < std::tie(b.start_time_, b.dest_time_);
                 });
               }
             }
+
+            stats_.n_results_in_interval = n_results_in_interval();
 
             rusage r_usage;
             getrusage(RUSAGE_SELF, &r_usage);
@@ -232,25 +156,11 @@ namespace nigiri::routing {
         bool is_pretrip() const { return !is_ontrip(); }
 
         unsigned n_results_in_interval() const {
-            /*if (holds_alternative<interval<unixtime_t>>(q_.start_time_)) {
-                auto count = utl::count_if(state_.results_, [&](journey const& j) {
-                    return search_interval_.contains(j.start_time_);
-                });
-                return static_cast<unsigned>(count);
-            } else {
-                return static_cast<unsigned>(state_.results_.size());
-            }*/
-            return static_cast<unsigned>(state_.results_.size());
-        }
-
-        bool max_interval_reached() const {
-            auto const can_search_earlier =
-                    q_.extend_interval_earlier_ &&
-                    search_interval_.from_ != tt_.external_interval().from_;
-            auto const can_search_later =
-                    q_.extend_interval_later_ &&
-                    search_interval_.to_ != tt_.external_interval().to_;
-            return !can_search_earlier && !can_search_later;
+          unsigned count = 0;
+          for(unsigned long idx = 0U; idx < state_.results_.size(); idx++) {
+            count += state_.results_[idx].size();
+          }
+            return count;
         }
 
         void add_start_labels(start_time_t const& start_interval,
@@ -258,14 +168,6 @@ namespace nigiri::routing {
             onetoall_get_starts(SearchDir, tt_, rtt_, start_interval, q_.start_,
                        q_.start_match_mode_, q_.use_start_footpaths_, state_.starts_,
                        add_ontrip);
-        }
-
-        void remove_ontrip_results() {
-            /*
-            utl::erase_if(state_.results_, [&](journey const& j) {
-                return !search_interval_.contains(j.start_time_);
-            });
-             */
         }
 
         void search_interval() {

@@ -34,7 +34,8 @@ namespace nigiri::routing::tripbased {
                      std::uint16_t const stop_idx,
                      std::uint16_t const n_transfers,
                      std::uint32_t const transferred_from,
-                     bitfield const operating_days);
+                     bitfield const operating_days,
+                     std::vector<std::string_view> trip_names);
 
         auto& operator[](queue_idx_t pos) { return segments_[pos]; }
 

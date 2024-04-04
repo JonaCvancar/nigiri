@@ -188,7 +188,7 @@ struct search {
                j.travel_time() > kMaxTravelTime;
       });
       utl::sort(state_.results_, [](journey const& a, journey const& b) {
-        return a.start_time_ < b.start_time_;
+        return std::tie(a.start_time_, a.dest_time_) < std::tie(b.start_time_, b.dest_time_);
       });
     }
 

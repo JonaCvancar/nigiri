@@ -35,7 +35,8 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
                            std::uint16_t const stop_idx,
                            std::uint16_t const n_transfers,
                            std::uint32_t const transferred_from,
-                           bitfield operating_days)
+                           bitfield operating_days,
+                           std::vector<std::string_view> trip_names)
 {
   assert(segments_.size() < std::numeric_limits<queue_idx_t>::max());
   assert(base_.has_value());
@@ -65,7 +66,7 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
           auto idx = get_or_create_bfi(std::get<1>(tuple));
 
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
-                                 transferred_from, idx);
+                                 transferred_from, idx, trip_names);
 #else
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
                                  transferred_from, std::get<1>(tuple));

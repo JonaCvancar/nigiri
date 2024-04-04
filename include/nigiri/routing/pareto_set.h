@@ -94,7 +94,38 @@ struct pareto_set {
     } else {
       return {false, end(), std::next(begin())};
     }
+  }
 
+  bool check(T&& el) {
+    for (auto i = 0U; i < els_.size(); ++i) {
+#if defined(EQUAL_JOURNEY)
+      if(els_[i].equal(el)) {
+        continue;
+      }
+#endif
+
+      if( !(els_[i].bitfield_ & el.bitfield_).any() ) {
+        continue;
+      }
+
+      if (els_[i].dominates(el)) {
+        if ((el.bitfield_ & ~els_[i].bitfield_).any()) {
+          el.set_bitfield(el.bitfield_ & ~els_[i].bitfield_);
+        } else {
+          return false;
+        }
+      }
+    }
+
+    if(el.bitfield_.any()) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  const T& operator[](size_t index) const {
+    return els_[index];
   }
 
   friend const_iterator begin(pareto_set const& s) { return s.begin(); }
