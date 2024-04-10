@@ -52,6 +52,9 @@ void tripbased_onetoall_query(
           j.dest_time_ = journey.dest_time_;
           j.dest_ = journey.dest_;
           j.transfers_ = journey.transfers_;
+#ifdef TB_OA_DEBUG_TRIPS
+          j.trip_names_ = journey.trip_names_;
+#endif
           results.add(std::move(j));
           transfers = journey.transfers_;
         }
@@ -75,6 +78,9 @@ void tripbased_onetoall_query(
           j.dest_time_ = journey.dest_time_;
           j.dest_ = journey.dest_;
           j.transfers_ = journey.transfers_;
+#ifdef TB_OA_DEBUG_TRIPS
+          j.trip_names_ = journey.trip_names_;
+#endif
           results.add(std::move(j));
         }
       }

@@ -29,13 +29,22 @@ namespace nigiri::routing::tripbased {
         }
 #endif
 
-        bool enqueue(std::uint16_t const transport_day,
+#ifdef TB_OA_DEBUG_TRIPS
+        std::tuple<bool, std::uint16_t> enqueue(std::uint16_t const transport_day,
                      transport_idx_t const,
                      std::uint16_t const stop_idx,
                      std::uint16_t const n_transfers,
                      std::uint32_t const transferred_from,
                      bitfield const operating_days,
-                     std::vector<std::string_view> trip_names);
+                     std::vector<std::string_view> const trip_names);
+#else
+        std::tuple<bool, std::uint16_t> enqueue(std::uint16_t const transport_day,
+                     transport_idx_t const,
+                     std::uint16_t const stop_idx,
+                     std::uint16_t const n_transfers,
+                     std::uint32_t const transferred_from,
+                     bitfield const operating_days);
+#endif
 
         auto& operator[](queue_idx_t pos) { return segments_[pos]; }
 

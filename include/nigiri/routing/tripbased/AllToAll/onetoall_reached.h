@@ -46,7 +46,7 @@ namespace nigiri::routing::tripbased {
                     std::uint16_t const stop_idx,
                     std::uint16_t const n_transfers);
 
-        std::vector<std::tuple<std::uint16_t, bitfield>> query(transport_segment_idx_t const,
+        std::tuple<std::vector<std::tuple<std::uint16_t, bitfield>>, uint16_t> query(transport_segment_idx_t const,
                             std::uint16_t const n_transfers,
                             bitfield const operating_days);
 

@@ -41,7 +41,6 @@ void add_start_times_at_stop(direction const search_dir,
                              interval<unixtime_t> const& interval_with_offset,
                              duration_t const offset,
                              std::vector<start>& starts,
-                             bool const oneToAll,
                              Less&& less) {
   auto const first_day_idx = tt.day_idx_mam(interval_with_offset.from_).first;
   auto const last_day_idx = tt.day_idx_mam(interval_with_offset.to_).first;
@@ -68,9 +67,10 @@ void add_start_times_at_stop(direction const search_dir,
         "(day_offset={}, stop_time_mam={})\n",
         interval_with_offset.from_, interval_with_offset.to_, t,
         tt.transport_name(t), stop_time, day_offset, stop_time_mam);
-    if(oneToAll) {
-      if (interval_with_offset.contains(tt.to_unixtime(first_day_idx, stop_time_mam))) {
-        auto const ev_time = tt.to_unixtime(first_day_idx, stop_time_mam);
+    for (auto day = first_day_idx; day <= last_day_idx; ++day) {
+      if (traffic_days.test(to_idx(day - day_offset)) &&
+          interval_with_offset.contains(tt.to_unixtime(day, stop_time_mam))) {
+        auto const ev_time = tt.to_unixtime(day, stop_time_mam);
         auto const [it, inserted] = insert_sorted(
             starts,
             start{.time_at_start_ = search_dir == direction::kForward
@@ -79,60 +79,20 @@ void add_start_times_at_stop(direction const search_dir,
                 .time_at_stop_ = ev_time,
                 .stop_ = location_idx},
             std::forward<Less>(less));
-        if(inserted){
-          trace_start(
-              "        => ADD START: time_at_start={}, time_at_stop={}, "
-              "stop={}, inserted={}\n",
-              it->time_at_start_, it->time_at_stop_,
-              location{tt, starts.back().stop_}, inserted);
-        } else {
-          trace_start(
-              "        skip: day={}, day_offset={}, date={}, active={}, "
-              "in_interval={}\n",
-              first_day_idx, day_offset,
-              tt.date_range_.from_ + to_idx(first_day_idx - day_offset) * 1_days,
-              traffic_days.test(to_idx(first_day_idx)),
-              interval_with_offset.contains(
-                  tt.to_unixtime(first_day_idx, stop_time.as_duration())));
-        }
+        trace_start(
+            "        => ADD START: time_at_start={}, time_at_stop={}, "
+            "stop={}\n",
+            it->time_at_start_, it->time_at_stop_,
+            location{tt, starts.back().stop_});
       } else {
         trace_start(
             "        skip: day={}, day_offset={}, date={}, active={}, "
             "in_interval={}\n",
-            first_day_idx, day_offset,
-            tt.date_range_.from_ + to_idx(first_day_idx - day_offset) * 1_days,
-            traffic_days.test(to_idx(first_day_idx)),
+            day, day_offset,
+            tt.date_range_.from_ + to_idx(day - day_offset) * 1_days,
+            traffic_days.test(to_idx(day)),
             interval_with_offset.contains(
-                tt.to_unixtime(first_day_idx, stop_time.as_duration())));
-      }
-    } else {
-      for (auto day = first_day_idx; day <= last_day_idx; ++day) {
-        if (traffic_days.test(to_idx(day - day_offset)) &&
-            interval_with_offset.contains(tt.to_unixtime(day, stop_time_mam))) {
-          auto const ev_time = tt.to_unixtime(day, stop_time_mam);
-          auto const [it, inserted] = insert_sorted(
-              starts,
-              start{.time_at_start_ = search_dir == direction::kForward
-                                      ? ev_time - offset
-                                      : ev_time + offset,
-                  .time_at_stop_ = ev_time,
-                  .stop_ = location_idx},
-              std::forward<Less>(less));
-          trace_start(
-              "        => ADD START: time_at_start={}, time_at_stop={}, "
-              "stop={}\n",
-              it->time_at_start_, it->time_at_stop_,
-              location{tt, starts.back().stop_});
-        } else {
-          trace_start(
-              "        skip: day={}, day_offset={}, date={}, active={}, "
-              "in_interval={}\n",
-              day, day_offset,
-              tt.date_range_.from_ + to_idx(day - day_offset) * 1_days,
-              traffic_days.test(to_idx(day)),
-              interval_with_offset.contains(
-                  tt.to_unixtime(day, stop_time.as_duration())));
-        }
+                tt.to_unixtime(day, stop_time.as_duration())));
       }
     }
   }
@@ -147,7 +107,6 @@ void add_starts_in_interval(direction const search_dir,
                             duration_t const d,
                             std::vector<start>& starts,
                             bool const add_ontrip,
-                            bool const oneToAll,
                             Less&& cmp) {
   trace_start(
       "    add_starts_in_interval(interval={}, stop={}, duration={}): {} "
@@ -186,7 +145,7 @@ void add_starts_in_interval(direction const search_dir,
           search_dir, tt, rtt, r, static_cast<stop_idx_t>(i),
           stop{s}.location_idx(),
           search_dir == direction::kForward ? interval + d : interval - d, d,
-          starts, oneToAll, std::forward<Less>(cmp));
+          starts, std::forward<Less>(cmp));
     }
   }
 
@@ -266,8 +225,7 @@ void get_starts(direction const search_dir,
                 location_match_mode const mode,
                 bool const use_start_footpaths,
                 std::vector<start>& starts,
-                bool const add_ontrip,
-                bool const oneToAll) {
+                bool const add_ontrip) {
   hash_map<location_idx_t, duration_t> shortest_start;
 
   auto const update = [&](location_idx_t const l, duration_t const d) {
@@ -298,7 +256,7 @@ void get_starts(direction const search_dir,
     std::visit(utl::overloaded{
                    [&](interval<unixtime_t> const interval) {
                      add_starts_in_interval(search_dir, tt, rtt, interval, l, o,
-                                            starts, add_ontrip, oneToAll, cmp);
+                                            starts, add_ontrip, cmp);
                    },
                    [&](unixtime_t const t) {
                      insert_sorted(starts,

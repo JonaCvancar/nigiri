@@ -49,7 +49,7 @@ int main() {
 
   std::string outputDir = "/home/jona/uni/thesis/results/aachen/";
 
-  auto const locations = routing::tripbased::onetoall::get_locations((aachen_dir_oa.path().string() + "/" + "bahnhof"));
+  auto const locations = routing::tripbased::onetoall::get_locations((aachen_dir_oa.path().string() + "/bahnhof"));
 
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -62,189 +62,127 @@ int main() {
   int days_count = aachen_period_oa().size().count();
   std::uniform_int_distribution<> dis_days(0, static_cast<int>(days_count));
 
-  int n_days = 50;
-  int n_tests_oa = 50;
-  int n_tests = 25;
+  while(true) {
+    std::ifstream infile("/home/jona/uni/thesis/results/aachen/output_1.txt");
+    std::vector<std::string> file_content;
 
+    // Check if the file can be opened
+    if (!infile.is_open()) {
+      std::cerr << "Failed to open file: " << "/home/jona/uni/thesis/results/aachen/output_1.txt" << std::endl;
+      return 1;
+    }
 
-  std::vector<int> spans = {2, 12, 24};
+    // Read each line of the file and store it in the vector
+    std::string line;
+    while (std::getline(infile, line)) {
+      file_content.push_back(line);
+    }
 
-  std::string filename = outputDir + "onetoall.txt";
+    // Close the file
+    infile.close();
 
-  std::ofstream outputFile(filename, std::ios::app);
-  outputFile << "Stop"
-             << " Runtime"
-             << " journey_count"
-             << " stop_count_not_empty"
-             << " stop_count_empty"
-             << " segments_count"
-             << " max_transfers"
-             << " segments_pruned"
-             << " equal_journey"
-             << " queue_handling"
-             << " bitfield_idx"
-             << " add_ontrip"
-             << " peak_memory"
-             << " exceeds_preprocessor"
-             << "\n";
-  outputFile.close();
+    std::string filename = outputDir + "onetoall.txt";
 
-  for(int oa = 0; oa < n_tests_oa; ++oa) {
-    unsigned long start = dis_start(gen);
-    location_idx_t start_loc_idx =
-        tt.locations_.location_id_to_idx_.at({locations[start], src});
-    TBDL << oa << " From: " << location_name(tt, start_loc_idx) << "_"
-         << start_loc_idx.v_ << "\n";
-    auto start_timer = steady_clock::now();
-    auto result_stats = tripbased_onetoall(tt, ts, start_loc_idx,
-                                            interval{start_time, end_time});
-    auto stop_timer = steady_clock::now();
+    std::ifstream infile_temp(filename);
+    infile_temp.seekg(0, std::ios::end); // Move to the end of the file
+    if (infile.tellg() == 0) {
+      infile_temp.close();
 
-    auto results = *result_stats.journeys_;
-    int count = 0;
-    int stop_count_not_empty = 0;
-    int stop_count_empty = 0;
-    for (const auto& element : results) {
-      if(element.size()) {
-        count += element.size();
-        stop_count_not_empty++;
-      } else {
-        stop_count_empty++;
+      std::ofstream outputFile(filename, std::ios::app);
+      outputFile << "Stop"
+                 << " Runtime"
+                 << " journey_count"
+                 << " new_bitfields"
+                 << " largest_queue"
+                 << " segments_enqueued"
+                 << " segments_pruned"
+                 << " prevent_reached"
+                 << " reached_comp"
+                 << " tmin_comp"
+                 << " res_comp"
+                 << " max_transfer"
+                 << " peak_memory"
+                 << " exceeds_preprocessor"
+                 << " equal_journey"
+                 << " queue_handling"
+                 << " bitfield_idx"
+                 << " check_previous"
+                 << " collect_stats"
+                 << "\n";
+      outputFile.close();
+    }
+
+    if(!file_content.empty()) {
+      // Remove the first element from the vector
+      std::string first_element = file_content.front();
+      file_content.erase(file_content.begin());
+
+      location_idx_t start_loc_idx =
+          tt.locations_.location_id_to_idx_.at({first_element, src});
+      TBDL << " From: " << location_name(tt, start_loc_idx) << "_"
+           << start_loc_idx.v_ << "\n";
+      auto start_timer = steady_clock::now();
+      auto result_stats = tripbased_onetoall(tt, ts, start_loc_idx,
+                                             interval{start_time, end_time});
+      auto stop_timer = steady_clock::now();
+
+      auto results = *result_stats.journeys_;
+      TBDL << "AllToAll calculation took: "
+           << std::chrono::duration_cast<std::chrono::milliseconds>(stop_timer -
+                                                                    start_timer)
+                  .count()
+           << "\n";
+
+      std::ofstream outputFile(filename, std::ios::app);
+      outputFile << first_element
+                 << " " << std::chrono::duration_cast<std::chrono::milliseconds>(stop_timer - start_timer).count()
+                 << " " << result_stats.search_stats_.n_results_in_interval
+                 << " " <<
+#ifdef TB_ONETOALL_BITFIELD_IDX
+          result_stats.search_stats_.n_new_bitfields_
+#else
+          0
+#endif
+                 << " " << result_stats.algo_stats_.n_largest_queue_size
+                 << " " << result_stats.algo_stats_.n_segments_enqueued_
+                 << " " << result_stats.algo_stats_.n_segments_pruned_
+                 << " " << result_stats.algo_stats_.n_enqueue_prevented_by_reached_
+#ifdef TB_OA_COLLECT_STATS
+                 << " " << result_stats.algo_stats_.n_reached_comparisons_
+                 << " " << result_stats.algo_stats_.n_tmin_comparisons_
+                 << " " << result_stats.algo_stats_.n_results_comparisons_
+#else
+                 << " " << 0
+                 << " " << 0
+                 << " " << 0
+#endif
+                 << " " << result_stats.algo_stats_.max_transfers_reached_
+                 << " " << result_stats.algo_stats_.peak_memory_usage_
+                 << " " << (result_stats.algo_stats_.peak_memory_usage_ > result_stats.algo_stats_.pre_memory_usage_)
+                 << " " << result_stats.algo_stats_.equal_journey_
+                 << " " << result_stats.algo_stats_.tb_queue_handling_
+                 << " " << result_stats.algo_stats_.tb_onetoall_bitfield_idx_
+                 << " " << result_stats.algo_stats_.tb_oa_check_previous_n_
+                 << " " << result_stats.algo_stats_.tb_oa_collect_stats_
+                 << "\n";
+
+      outputFile.close();
+
+      std::ofstream outfile_stops("/home/jona/uni/thesis/results/aachen/output_1.txt");
+
+      // Check if the file can be opened
+      if (!outfile_stops.is_open()) {
+        std::cerr << "Failed to open file: " << "/home/jona/uni/thesis/results/aachen/output_1.txt" << std::endl;
+        return 1;
       }
-    }
-    TBDL << "Number of trips in total: " << count << "\n";
 
-    TBDL << "AllToAll calculation took: "
-         << std::chrono::duration_cast<std::chrono::milliseconds>(stop_timer -
-                                                                  start_timer)
-                .count()
-         << "\n";
-
-    std::ofstream outputFile(filename, std::ios::app);
-    outputFile << "" << locations[start]
-               << "" << std::chrono::duration_cast<std::chrono::milliseconds>(stop_timer - start_timer).count()
-               << " " << count
-               << " " << stop_count_not_empty
-               << " " << stop_count_empty
-               << " " << result_stats.algo_stats_.n_segments_enqueued_
-               << " " << result_stats.algo_stats_.max_transfers_reached_
-               << " " << result_stats.algo_stats_.n_segments_pruned_
-               << " " << result_stats.algo_stats_.equal_journey_
-               << " " << result_stats.algo_stats_.tb_queue_handling_
-               << " " << result_stats.algo_stats_.tb_onetoall_bitfield_idx_
-               << " " << result_stats.algo_stats_.tb_oa_add_ontrip_
-               << " " << result_stats.algo_stats_.peak_memory_usage_
-               << " " << (result_stats.algo_stats_.peak_memory_usage_ > result_stats.algo_stats_.pre_memory_usage_)
-               << "\n";
-    outputFile.close();
-
-    /*
-    if(count == 0) {
-      continue;
-    }
-
-    for (auto& span : spans) {
-      std::uniform_int_distribution<> dis2(begin_h, end_h - (span-1));
-
-      int i = 0;
-      for (; i < n_tests; i++) {
-        auto end_location = static_cast<unsigned long>(dis(gen));
-        location_idx_t end_loc_idx =
-            tt.locations_.location_id_to_idx_.at({locations[end_location], src});
-        while (results[end_loc_idx.v_].size() == 0) {
-          end_location = static_cast<unsigned long>(dis(gen));
-          end_loc_idx =
-              tt.locations_.location_id_to_idx_.at({locations[end_location], src});
-        }
-
-        if (end_loc_idx.v_ == start_loc_idx.v_) {
-          while (end_loc_idx.v_ == start_loc_idx.v_) {
-            end_location = static_cast<unsigned long>(dis(gen));
-            end_loc_idx =
-                tt.locations_.location_id_to_idx_.at({locations[end_location], src});
-          }
-        }
-        TBDL << i << " To: " << location_name(tt, end_loc_idx) << "_"
-             << end_loc_idx.v_ << ", Results length: " << results.size() <<  "\n";
-
-        std::string filename_oa = outputDir + "oa_" + std::to_string(span) + ".txt";
-        std::string filename_tb = outputDir + "tb_" + std::to_string(span) + ".txt";
-        std::string filename_rp = outputDir + "rp_" + std::to_string(span) + ".txt";
-        std::string filename_oa_ea = outputDir + "oa_ea_" + std::to_string(span) + ".txt";
-        std::string filename_tb_ea = outputDir + "tb_ea_" + std::to_string(span) + ".txt";
-        std::string filename_rp_ea = outputDir + "rp_ea_" + std::to_string(span) + ".txt";
-
-        for (int n_day = 0; n_day < n_days; n_day++) {
-          int day = dis_days(gen);
-          int h1 = dis2(gen);
-
-          auto query_interval = interval{begin_d + days{day} + hours{h1},
-                end_d + days{day} + hours{h1 + (span-1)} + minutes{59}};
-
-          start_timer = steady_clock::now();
-          pareto_set<routing::journey> results_oa;
-          routing::tripbased::onetoall::tripbased_onetoall_query(
-              tt, results[end_loc_idx.v_], results_oa,
-              query_interval);
-          stop_timer = steady_clock::now();
-          std::ofstream outputFile_oa(filename_oa, std::ios::app);
-          outputFile_oa << std::chrono::duration_cast<std::chrono::microseconds>(stop_timer - start_timer).count()
-                     << " " << results_oa.size() << "\n";
-          outputFile_oa.close();
-
-          start_timer = steady_clock::now();
-          pareto_set<routing::journey> results_tb = tripbased_search(
-              tt, ts, start_loc_idx, end_loc_idx,
-              query_interval);
-          stop_timer = steady_clock::now();
-          std::ofstream outputFile_tb(filename_tb, std::ios::app);
-          outputFile_tb << std::chrono::duration_cast<std::chrono::microseconds>(stop_timer - start_timer).count()
-                        << " " << results_tb.size() << "\n";
-          outputFile_tb.close();
-
-          start_timer = steady_clock::now();
-          pareto_set<routing::journey> results_rp = raptor_search(
-              tt, nullptr, start_loc_idx, end_loc_idx,
-              query_interval);
-          stop_timer = steady_clock::now();
-          std::ofstream outputFile_rp(filename_rp, std::ios::app);
-          outputFile_rp << std::chrono::duration_cast<std::chrono::microseconds>(stop_timer - start_timer).count()
-                        << " " << results_rp.size() << "\n";
-          outputFile_rp.close();
-
-          start_timer = steady_clock::now();
-          pareto_set<routing::journey> results_oa_ea;
-          tripbased_onetoall_query(
-              tt, results[end_loc_idx.v_], results_oa_ea,
-              {begin_d + days{day} + hours{h1}});
-          stop_timer = steady_clock::now();
-          std::ofstream outputFile_oa_ea(filename_oa_ea, std::ios::app);
-          outputFile_oa_ea << std::chrono::duration_cast<std::chrono::microseconds>(stop_timer - start_timer).count()
-                        << " " << results_oa_ea.size() << "\n";
-          outputFile_oa_ea.close();
-
-          start_timer = steady_clock::now();
-          pareto_set<routing::journey> results_tb_ea = tripbased_search(
-              tt, ts, start_loc_idx, end_loc_idx,
-              {begin_d + days{day} + hours{h1}});
-          stop_timer = steady_clock::now();
-          std::ofstream outputFile_tb_ea(filename_tb_ea, std::ios::app);
-          outputFile_tb_ea << std::chrono::duration_cast<std::chrono::microseconds>(stop_timer - start_timer).count()
-                           << " " << results_tb_ea.size() << "\n";
-          outputFile_tb_ea.close();
-
-          start_timer = steady_clock::now();
-          pareto_set<routing::journey> results_rp_ea = raptor_search(
-              tt, nullptr, start_loc_idx, end_loc_idx,
-              {begin_d + days{day} + hours{h1}});
-          stop_timer = steady_clock::now();
-          std::ofstream outputFile_rp_ea(filename_rp_ea, std::ios::app);
-          outputFile_rp_ea << std::chrono::duration_cast<std::chrono::microseconds>(stop_timer - start_timer).count()
-                           << " " << results_rp_ea.size() << "\n";
-          outputFile_rp_ea.close();
-        }
+      // Write each element of the vector to the file
+      for (const auto& content : file_content) {
+        outfile_stops << content << std::endl;
       }
+
+      // Close the file
+      outfile_stops.close();
     }
-    */
   }
 }

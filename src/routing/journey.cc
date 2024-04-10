@@ -44,7 +44,15 @@ void journey::print(std::ostream& out,
                     bool const debug) const {
   if (legs_.empty()) {
     out << "no legs [start_time=" << start_time_ << ", dest_time=" << dest_time_
-        << ", transfers=" << static_cast<int>(transfers_) << "\n";
+        << ", transfers=" << static_cast<int>(transfers_);
+
+#ifdef TB_OA_DEBUG_TRIPS
+    out << ", ";
+    for(auto& trip_name : trip_names_) {
+      out << trip_name << ", ";
+    }
+#endif
+    out << "\n";
     return;
   }
 

@@ -35,6 +35,9 @@ namespace nigiri::routing {
 
     struct onetoall_search_stats {
         std::uint32_t n_results_in_interval{0U};
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        std::uint64_t n_new_bitfields_{0U};
+#endif
     };
 
     template <typename AlgoStats>
@@ -109,13 +112,10 @@ namespace nigiri::routing {
 
             state_.starts_.clear();
             // checks for lines departing from starts location and adds their start times to state starts
-#ifdef TB_OA_ADD_ONTRIP
             add_start_labels(q_.start_time_, true);
-#else
-            add_start_labels(q_.start_time_, false);
-#endif
 
 #ifdef TB_ONETOALL_BITFIELD_IDX
+            auto const num_bitfields_initial = tt_.bitfields_.size();
             for (bitfield_idx_t bfi{0U}; bfi < tt_.bitfields_.size();
                  ++bfi) {  // bfi: bitfield index
               bitfield_to_bitfield_idx_.emplace(tt_.bitfields_[bfi], bfi);
@@ -137,6 +137,10 @@ namespace nigiri::routing {
             }
 
             stats_.n_results_in_interval = n_results_in_interval();
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+            stats_.n_new_bitfields_ = tt_.bitfields_.size() - num_bitfields_initial;
+#endif
 
             rusage r_usage;
             getrusage(RUSAGE_SELF, &r_usage);

@@ -247,6 +247,9 @@ void query_engine::seg_dest(unixtime_t const start_time,
         j.dest_ = stop{tt_.route_location_seq_[seg_route_idx][le.stop_idx_]}
                       .location_idx();
         j.transfers_ = n;
+#ifdef TB_OA_DEBUG_TRIPS
+        j.trip_names_ = seg.trip_names_;
+#endif
         // add journey to pareto set (removes dominated entries)
 #ifndef NDEBUG
         TBDL << "updating pareto set with new journey: ";
@@ -439,9 +442,27 @@ void query_engine::seg_transfers(std::uint8_t const n,
                                     std::max(kappa, seg.transfer_class_max_),
                                     seg.transfer_class_sum_ + kappa, q_cur);
 #else
+#ifdef TB_OA_DEBUG_TRIPS
+          std::vector<std::string_view> trip_names = seg.trip_names_;
+          trip_names.emplace_back(
+              tt_.trip_id_strings_
+                  [tt_.trip_ids_
+                       [tt_.merged_trips_[tt_.transport_to_trip_section_
+                                              [transfer.get_transport_idx_to()]
+                                                  .front()]
+                            .front()]
+                           .front()]
+                      .view());
+
+          bool enq = state_.q_n_.enqueue(
+              static_cast<std::uint16_t>(d_tr), transfer.get_transport_idx_to(),
+              transfer.get_stop_idx_to(), n + 1U, q_cur, trip_names);
+#else
           bool enq = state_.q_n_.enqueue(
               static_cast<std::uint16_t>(d_tr), transfer.get_transport_idx_to(),
               transfer.get_stop_idx_to(), n + 1U, q_cur);
+#endif
+
           if (!enq) {
             ++stats_.n_enqueue_prevented_by_reached_;
           }
@@ -559,6 +580,10 @@ void query_engine::handle_segment(unixtime_t const start_time,
           TBDL << "new journey ending with this segment is dominated\n";
         }
 #else
+#ifdef TB_OA_DEBUG_TRIPS
+        j.trip_names_ = seg.trip_names_;
+#endif
+
         results.add(std::move(j));
         ++stats_.n_journeys_found_;
 #endif
@@ -657,6 +682,7 @@ void query_engine::handle_segment(unixtime_t const start_time,
         // from the current transport segment
         auto const& theta = tt_.bitfields_[transfer.get_bitfield_idx()];
         // enqueue if transfer is possible
+
         if (theta.test(static_cast<std::size_t>(d_seg))) {
           // arrival time at start location of transfer
           auto const tau_arr_t_i =
@@ -727,9 +753,27 @@ void query_engine::handle_segment(unixtime_t const start_time,
                                     std::max(kappa, reached_transfer_class_max),
                                     reached_transfer_class_sum + kappa, q_cur);
 #else
+#ifdef TB_OA_DEBUG_TRIPS
+          std::vector<std::string_view> trip_names = seg.trip_names_;
+          trip_names.emplace_back(
+              tt_.trip_id_strings_
+                  [tt_.trip_ids_
+                       [tt_.merged_trips_[tt_.transport_to_trip_section_
+                                              [transfer.get_transport_idx_to()]
+                                                  .front()]
+                            .front()]
+                           .front()]
+                      .view());
+
+
+          state_.q_n_.enqueue(static_cast<std::uint16_t>(d_tr),
+                              transfer.get_transport_idx_to(),
+                              transfer.get_stop_idx_to(), n + 1U, q_cur, trip_names);
+#else
           state_.q_n_.enqueue(static_cast<std::uint16_t>(d_tr),
                               transfer.get_transport_idx_to(),
                               transfer.get_stop_idx_to(), n + 1U, q_cur);
+#endif
 #endif
         }
       }
@@ -841,8 +885,16 @@ void query_engine::handle_start_footpath(std::int32_t const d,
             state_.q_n_.enqueue_class(static_cast<std::uint16_t>(d_seg), t, i,
                                       0U, 0, 0, TRANSFERRED_FROM_NULL);
 #else
+#ifdef TB_OA_DEBUG_TRIPS
+            std::vector<std::string_view> trip_names;
+            trip_names.emplace_back(tt_.trip_id_strings_[tt_.trip_ids_[tt_.merged_trips_[tt_.transport_to_trip_section_[t].front()].front()].front()].view());
+
+            state_.q_n_.enqueue(static_cast<std::uint16_t>(d_seg), t, i, 0U,
+                                TRANSFERRED_FROM_NULL, trip_names);
+#else
             state_.q_n_.enqueue(static_cast<std::uint16_t>(d_seg), t, i, 0U,
                                 TRANSFERRED_FROM_NULL);
+#endif
 #endif
             break;
           }

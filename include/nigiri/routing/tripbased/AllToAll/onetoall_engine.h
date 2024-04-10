@@ -28,12 +28,21 @@ namespace nigiri::routing::tripbased {
         bool  equal_journey_{false};
         bool  tb_queue_handling_{false};
         bool  tb_onetoall_bitfield_idx_{false};
-        bool  tb_oa_add_ontrip_{false};
+        bool  tb_oa_check_previous_n_{false};
+        bool  tb_oa_collect_stats_{false};
+        std::uint64_t n_largest_queue_size{0U};
         std::uint64_t n_segments_enqueued_{0U};
         std::uint64_t n_segments_pruned_{0U};
         std::uint64_t n_enqueue_prevented_by_reached_{0U};
         std::uint64_t n_journeys_found_{0U};
         std::uint64_t empty_n_{0U};
+
+#ifdef TB_OA_COLLECT_STATS
+        std::uint64_t n_reached_comparisons_{0U};
+        std::uint64_t n_tmin_comparisons_{0U};
+        std::uint64_t n_results_comparisons_{0U};
+#endif
+
         bool max_transfers_reached_{false};
         double pre_memory_usage_ = 0;
         double peak_memory_usage_ = 0;
@@ -104,7 +113,12 @@ namespace nigiri::routing::tripbased {
 #endif
 
     private:
-        void handle_start(oneToAll_start const&, unixtime_t const);
+        void handle_start(unixtime_t const start_time,
+                        oneToAll_start const&,
+                        unixtime_t const,
+                        std::vector<pareto_set<journey_bitfield>>&);
+
+        void add_start_footpath_journey(unixtime_t const start_time, std::int32_t const, std::int32_t const, footpath const, std::vector<pareto_set<journey_bitfield>>&);
 
         void handle_start_footpath(std::int32_t const,
                                    std::int32_t const,

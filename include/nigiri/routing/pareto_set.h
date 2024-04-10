@@ -33,7 +33,14 @@ struct pareto_set {
             end()};
   }
 
-  std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
+#ifdef TB_OA_COLLECT_STATS
+  std::tuple<bool, iterator, iterator, std::uint16_t> add_bitfield(T&& el) {
+#else
+std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
+#endif
+#ifdef TB_OA_COLLECT_STATS
+    std::uint16_t n_comparisons = 0U;
+#endif
     auto n_removed = std::size_t{0};
 #if defined(EQUAL_JOURNEY)
     bool equal = false;
@@ -41,12 +48,14 @@ struct pareto_set {
 #endif
     for (auto i = 0U; i < els_.size(); ++i) {
 #if defined(EQUAL_JOURNEY)
+#ifdef TB_OA_COLLECT_STATS
+      n_comparisons++;
+#endif
       if(els_[i].equal(el)) {
         els_[i - n_removed] = els_[i];
         equal = true;
         equal_idx = i - n_removed;
         continue;
-        // return {true, std::next(begin(), i), end()};
       }
 #endif
 
@@ -55,14 +64,24 @@ struct pareto_set {
         continue;
       }
 
+#ifdef TB_OA_COLLECT_STATS
+      n_comparisons++;
+#endif
       if (els_[i].dominates(el)) {
         if ((el.bitfield_ & ~els_[i].bitfield_).any()) {
           el.set_bitfield(el.bitfield_ & ~els_[i].bitfield_);
         } else {
+#ifdef TB_OA_COLLECT_STATS
+          return {false, end(), std::next(begin(), i), n_comparisons};
+#else
           return {false, end(), std::next(begin(), i)};
+#endif
         }
       }
 
+#ifdef TB_OA_COLLECT_STATS
+      n_comparisons++;
+#endif
       if (el.dominates(els_[i])) {
         if( (els_[i].bitfield_ & ~el.bitfield_).any()) {
           els_[i].set_bitfield(els_[i].bitfield_ & ~el.bitfield_);
@@ -81,18 +100,32 @@ struct pareto_set {
         std::cout << "Equal index wrong.\n";
       }
       els_.resize(els_.size() - n_removed);
+#ifdef TB_OA_COLLECT_STATS
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end(), n_comparisons};
+#else
       return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
               end()};
+#endif
     }
 #endif
 
     els_.resize(els_.size() - n_removed + 1);
     if(el.bitfield_.any()) {
       els_.back() = std::move(el);
+#ifdef TB_OA_COLLECT_STATS
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end(), n_comparisons};
+#else
       return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
               end()};
+#endif
     } else {
+#ifdef TB_OA_COLLECT_STATS
+      return {false, end(), std::next(begin()), n_comparisons};
+#else
       return {false, end(), std::next(begin())};
+#endif
     }
   }
 

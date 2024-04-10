@@ -34,12 +34,21 @@ struct q_n {
                      std::uint32_t const transferred_from);
 
 #else
-
+#ifdef TB_OA_DEBUG_TRIPS
+  bool enqueue(std::uint16_t const transport_day,
+               transport_idx_t const,
+               std::uint16_t const stop_idx,
+               std::uint16_t const n_transfers,
+               std::uint32_t const transferred_from,
+               std::vector<std::string_view> trip_names);
+#else
   bool enqueue(std::uint16_t const transport_day,
                transport_idx_t const,
                std::uint16_t const stop_idx,
                std::uint16_t const n_transfers,
                std::uint32_t const transferred_from);
+#endif
+
 
 #endif
 

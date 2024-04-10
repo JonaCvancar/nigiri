@@ -141,11 +141,20 @@ void q_n::enqueue_class(std::uint16_t const transport_day,
 }
 
 #else
+#ifdef TB_OA_DEBUG_TRIPS
+bool q_n::enqueue(std::uint16_t const transport_day,
+                  transport_idx_t const transport_idx,
+                  std::uint16_t const stop_idx,
+                  std::uint16_t const n_transfers,
+                  std::uint32_t const transferred_from,
+                  std::vector<std::string_view> trip_names) {
+#else
 bool q_n::enqueue(std::uint16_t const transport_day,
                   transport_idx_t const transport_idx,
                   std::uint16_t const stop_idx,
                   std::uint16_t const n_transfers,
                   std::uint32_t const transferred_from) {
+#endif
   assert(segments_.size() < std::numeric_limits<queue_idx_t>::max());
   assert(base_.has_value());
 
@@ -169,8 +178,13 @@ bool q_n::enqueue(std::uint16_t const transport_day,
       }
 
       // add transport segment
+#ifdef TB_OA_DEBUG_TRIPS
       segments_.emplace_back(transport_segment_idx, stop_idx, r_query_res,
-                             transferred_from);
+                             transferred_from, trip_names);
+#else
+      segments_.emplace_back(transport_segment_idx, stop_idx, r_query_res,
+                       transferred_from);
+#endif
 #ifndef NDEBUG
       TBDL << "Enqueued transport segment: ";
       print(std::cout, static_cast<queue_idx_t>(segments_.size() - 1));

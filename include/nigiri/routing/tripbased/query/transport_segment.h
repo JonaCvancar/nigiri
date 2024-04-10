@@ -92,6 +92,18 @@ struct transport_segment {
         transfer_class_max_(transfer_class_max),
         transfer_class_sum_(transfer_class_sum) {}
 #else
+#ifdef TB_OA_DEBUG_TRIPS
+  transport_segment(transport_segment_idx_t transport_segment_idx,
+                    stop_idx_t stop_idx_start,
+                    stop_idx_t stop_idx_end,
+                    std::uint32_t transferred_from,
+                    std::vector<std::string_view > trip_names)
+      : transport_segment_idx_(transport_segment_idx),
+        stop_idx_start_(stop_idx_start),
+        stop_idx_end_(stop_idx_end),
+        transferred_from_(transferred_from),
+        trip_names_(trip_names) {}
+#else
   transport_segment(transport_segment_idx_t transport_segment_idx,
                     stop_idx_t stop_idx_start,
                     stop_idx_t stop_idx_end,
@@ -100,6 +112,7 @@ struct transport_segment {
         stop_idx_start_(stop_idx_start),
         stop_idx_end_(stop_idx_end),
         transferred_from_(transferred_from) {}
+#endif
 #endif
 
   day_idx_t get_transport_day(day_idx_t const base) const {
@@ -128,6 +141,10 @@ struct transport_segment {
 
   // queue index of the segment from which we transferred to this segment
   std::uint32_t transferred_from_;
+
+#ifdef TB_OA_DEBUG_TRIPS
+  std::vector<std::string_view> trip_names_;
+#endif
 
 #ifdef TB_CACHE_PRESSURE_REDUCTION
   union {

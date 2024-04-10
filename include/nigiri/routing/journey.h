@@ -107,6 +107,10 @@ struct journey {
   unixtime_t dest_time_;
   location_idx_t dest_;
   std::uint8_t transfers_{0U};
+#ifdef TB_OA_DEBUG_TRIPS
+  std::vector<std::string_view> trip_names_;
+#endif
+
 #ifdef TB_MIN_WALK
   std::uint16_t time_walk_{0U};
 #elifdef TB_TRANSFER_CLASS

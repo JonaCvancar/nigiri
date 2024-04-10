@@ -45,7 +45,8 @@ void tripbased_onetoall_correctness(
   routing::tripbased::tripbased_onetoall_query(tt, oa, results, time);
 }
 
-std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall_query(
+routing::routing_result_oa<routing::tripbased::oneToAll_stats> tripbased_onetoall_query(
+// std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall_query(
     timetable& tt,
     routing::tripbased::transfer_set& ts,
     location_idx_t from,
@@ -61,10 +62,10 @@ std::vector<pareto_set<routing::journey_bitfield>> tripbased_onetoall_query(
   q = routing::onetoall_query{.start_time_ = time,
                               .start_ = {{from, 0_minutes, 0U}}};
 
-  return *(routing::onetoall_search<direction::kForward, algo_oa_t>{
+  return (routing::onetoall_search<direction::kForward, algo_oa_t>{
       tt, nullptr, search_state_oa, algo_state_oa, std::move(q)}
-               .execute()
-               .journeys_);
+               .execute());
+               //.journeys_);
 }
 
 pareto_set<routing::journey> tripbased_search_correctness(timetable& tt,

@@ -30,13 +30,22 @@ bitfield_idx_t onetoall_q_n::get_or_create_bfi(bitfield const& bf) {
 }
 #endif
 
-bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
+#ifdef TB_OA_DEBUG_TRIPS
+std::tuple<bool, std::uint16_t> onetoall_q_n::enqueue(std::uint16_t const transport_day,
                            transport_idx_t const transport_idx,
                            std::uint16_t const stop_idx,
                            std::uint16_t const n_transfers,
                            std::uint32_t const transferred_from,
                            bitfield operating_days,
-                           std::vector<std::string_view> trip_names)
+                           std::vector<std::string_view> const trip_names)
+#else
+std::tuple<bool, std::uint16_t> onetoall_q_n::enqueue(std::uint16_t const transport_day,
+                           transport_idx_t const transport_idx,
+                           std::uint16_t const stop_idx,
+                           std::uint16_t const n_transfers,
+                           std::uint32_t const transferred_from,
+                           bitfield operating_days)
+#endif
 {
   assert(segments_.size() < std::numeric_limits<queue_idx_t>::max());
   assert(base_.has_value());
@@ -51,7 +60,8 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
         embed_day_offset(day_offset, transport_idx);
 
     // look-up the earliest stop index reached R(L)-LookUp
-    auto const r_query_res = r_.query(transport_segment_idx, n_transfers, operating_days);
+    bool res_exists = false;
+    auto const [r_query_res, n_comparisons] = r_.query(transport_segment_idx, n_transfers, operating_days);
     for(const auto& tuple : r_query_res) {
       if (stop_idx < std::get<0>(tuple)) {
         // new n?
@@ -61,15 +71,29 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
         }
 
         if(std::get<1>(tuple).any()) {
+          res_exists = true;
           // add transport segment
 #ifdef TB_ONETOALL_BITFIELD_IDX
           auto idx = get_or_create_bfi(std::get<1>(tuple));
 
+#ifdef TB_OA_DEBUG_TRIPS
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
                                  transferred_from, idx, trip_names);
 #else
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
+                                 transferred_from, idx);
+#endif
+
+#else
+
+#ifdef TBTB_OA_DEBUG_TRIPS
+          segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
+                                 transferred_from, std::get<1>(tuple), trip_names);
+#else
+          segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
                                  transferred_from, std::get<1>(tuple));
+#endif
+
 #endif
 
 #ifndef NDEBUG
@@ -86,11 +110,11 @@ bool onetoall_q_n::enqueue(std::uint16_t const transport_day,
         }
       }
     }
-    if(!r_query_res.empty()) {
-      return true;
+    if(!r_query_res.empty() && res_exists) {
+      return std::make_tuple(true, n_comparisons);
     }
   }
-  return false;
+  return std::make_tuple(false, 0U);
 }
 
 void onetoall_q_n::print(std::ostream& out, queue_idx_t const q_idx) {

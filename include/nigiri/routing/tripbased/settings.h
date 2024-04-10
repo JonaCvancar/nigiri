@@ -8,9 +8,14 @@
 // #define TB_MIN_WALK
 // #define TB_TRANSFER_CLASS
 #define EQUAL_JOURNEY
-#define TB_QUEUE_HANDLING
-#define TB_ONETOALL_BITFIELD_IDX
-//#define TB_OA_ADD_ONTRIP
+//#define TB_QUEUE_HANDLING
+//#define TB_ONETOALL_BITFIELD_IDX
+//#define TB_OA_CHECK_PREVIOUS_N
+#define TB_OA_COLLECT_STATS
+// only working with MIN_WALK and TRANSFER_CLASS disabled
+//#define TB_OA_DEBUG_TRIPS
+
+//#define JOURNEY_RECONSTRUCT
 
 #ifdef TB_TRANSFER_CLASS
 #define TB_TRANSFER_CLASS0 15

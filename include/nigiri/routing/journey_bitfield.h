@@ -94,7 +94,9 @@ struct journey_bitfield {
   location_idx_t dest_;
   std::uint8_t transfers_{0U};
   bitfield bitfield_;
+#ifdef TB_OA_DEBUG_TRIPS
   std::vector<std::string_view> trip_names_;
+#endif
 };
 
 }  // namespace nigiri::routing
