@@ -103,14 +103,14 @@ void oneToAll_engine::execute(unixtime_t const start_time,
   bitfield_to_bitfield_idx_ = bitfieldMap;
 #endif
 
-//#ifndef NDEBUG
+#ifndef NDEBUG
   TBDL << "Executing with start_time: " << unix_dhhmm(tt_, start_time)
        << ", max_transfers: " << std::to_string(max_transfers)
        << ", worst_time_at_dest: " << unix_dhhmm(tt_, worst_time_at_dest)
        << ", Initializing Q_0...\n";
-/*#else
+#else
   (void)start_time;
-#endif*/
+#endif
 
   // init Q_0
   for (auto const& qs : state_.query_starts_) {
@@ -220,16 +220,38 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         tt_.to_unixtime(base_, minutes_after_midnight_t{tau_d_temp});
 
     if (stop_temp.out_allowed() && t_cur < worst_time_at_dest) {
-
+#ifdef TB_OA_NEW_TMIN
+      auto [non_dominated_tmin, tmin_begin, tmin_end, tmin_comparisons] =
+          state_.t_min_[location_id.v_].add_bitfield(
+              oneToAll_tMin{t_cur, n, operating_days});
+#else
       auto [non_dominated_tmin, tmin_begin, tmin_end, tmin_comparisons] =
           state_.t_min_[location_id.v_][n].add_bitfield(
               oneToAll_tMin{t_cur, operating_days});
-
-#ifdef TB_OA_COLLECT_STATS
-      stats_.n_tmin_comparisons_ += tmin_comparisons;
 #endif
 
-      if (non_dominated_tmin) {
+      if (!non_dominated_tmin) {
+        stats_.n_segments_pruned_++;
+        continue;
+      }
+
+#ifdef TB_OA_NEW_TMIN
+      auto [non_dominated_tmin_f, tmin_begin_f, tmin_end_f,
+          tmin_comparisons_f] =
+          state_.t_min_final_[location_id.v_].add_bitfield(
+              oneToAll_tMin{t_cur, n, operating_days});
+#else
+      auto [non_dominated_tmin_f, tmin_begin_f, tmin_end_f,
+            tmin_comparisons_f] =
+          state_.t_min_final_[location_id.v_][n].add_bitfield(
+              oneToAll_tMin{t_cur, operating_days});
+#endif
+
+#ifdef TB_OA_COLLECT_STATS
+      stats_.n_tmin_comparisons_ += tmin_comparisons_f;
+#endif
+
+      if (non_dominated_tmin_f) {
         journey_bitfield j{};
         j.start_time_ = start_time;
         j.dest_time_ = t_cur;
@@ -241,15 +263,13 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
 #endif
 
 #ifdef TB_OA_COLLECT_STATS
-        auto [non_dominated_res, res_begin, res_end, res_comparisons] = results[location_id.v_].add_bitfield(std::move(j));
+        auto [non_dominated_res, res_begin, res_end, res_comparisons] =
+            results[location_id.v_].add_bitfield(std::move(j));
         stats_.n_results_comparisons_ += res_comparisons;
 #else
         results[location_id.v_].add_bitfield(std::move(j));
 #endif
         ++stats_.n_journeys_found_;
-      } else {
-        stats_.n_segments_pruned_++;
-        continue;
       }
 
       // CheckFootpaths
@@ -258,10 +278,17 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
           continue;
         }
 
+#ifdef TB_OA_NEW_TMIN
         auto [non_dominated_fp, fp_begin, fp_end, fp_comparisons] =
-            state_.t_min_[fp.target().v_][n].add_bitfield(
+            state_.t_min_final_[fp.target().v_].add_bitfield(
+                oneToAll_tMin{t_cur + i32_minutes{fp.duration_}, n,
+                              operating_days});
+#else
+        auto [non_dominated_fp, fp_begin, fp_end, fp_comparisons] =
+            state_.t_min_final_[fp.target().v_][n].add_bitfield(
                 oneToAll_tMin{t_cur + i32_minutes{fp.duration_},
                               operating_days});
+#endif
 
 #ifdef TB_OA_COLLECT_STATS
         stats_.n_tmin_comparisons_ += fp_comparisons;
@@ -326,34 +353,6 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
             continue;
           }
 
-#ifdef TB_OA_CHECK_PREVIOUS_N
-          auto const travel_time_next =
-              tt_.event_mam(transfer.get_transport_idx_to(),
-                            transfer.stop_idx_to_ + 1, event_type::kArr)
-                  .count() -
-              tau_dep_u_j;
-
-          auto const unix_time_next = tt_.to_unixtime(
-              base_, minutes_after_midnight_t{tau_d_temp + travel_time_next});
-
-          auto const stop_next =
-              stop{tt_.route_location_seq_
-                       [tt_.transport_route_[transfer.get_transport_idx_to()]]
-                       [transfer.stop_idx_to_ + 1]};
-          auto const location_next_id = stop_next.location_idx();
-
-          for (std::uint8_t n_temp = 0; n_temp < n + 1; n_temp++) {
-            auto non_dominated_tmin_n_check =
-                state_.t_min_[location_next_id.v_][n_temp].check(
-                    oneToAll_tMin{unix_time_next, new_operating_days});
-
-            if (!non_dominated_tmin_n_check) {
-              stats_.n_segments_pruned_++;
-              continue;
-            }
-          }
-#endif
-
 #ifdef TB_OA_DEBUG_TRIPS
           std::vector<std::string_view> trip_names = seg.trip_names_;
           trip_names.emplace_back(
@@ -367,9 +366,9 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
                   .view());
 
           auto [enqueued, n_comparison] = state_.q_n_.enqueue(static_cast<std::uint16_t>(new_day_offset),
-                              transfer.get_transport_idx_to(),
-                              transfer.get_stop_idx_to(), n + 1U, q_cur,
-                              new_operating_days, trip_names);
+                                                              transfer.get_transport_idx_to(),
+                                                              transfer.get_stop_idx_to(), n + 1U, q_cur,
+                                                              new_operating_days, trip_names);
           if(!enqueued) {
             stats_.n_enqueue_prevented_by_reached_++;
           }
@@ -378,9 +377,9 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
 #endif
 #else
           auto [enqueued, n_comparison] = state_.q_n_.enqueue(static_cast<std::uint16_t>(new_day_offset),
-                              transfer.get_transport_idx_to(),
-                              transfer.get_stop_idx_to(), n + 1U, q_cur,
-                              new_operating_days);
+                                                              transfer.get_transport_idx_to(),
+                                                              transfer.get_stop_idx_to(), n + 1U, q_cur,
+                                                              new_operating_days);
           if(!enqueued) {
             stats_.n_enqueue_prevented_by_reached_++;
           }
@@ -414,9 +413,15 @@ void oneToAll_engine::add_start_footpath_journey(unixtime_t const start_time, st
     all_set.set(i);
   }
 
+#ifdef TB_OA_NEW_TMIN
   auto [non_dominated_tmin, tmin_begin, tmin_end, n_comparisons_tmin] =
-      state_.t_min_[fp.target_][0].add_bitfield(
+      state_.t_min_final_[fp.target_].add_bitfield(
+          oneToAll_tMin{tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_}), 0, all_set});
+#else
+  auto [non_dominated_tmin, tmin_begin, tmin_end, n_comparisons_tmin] =
+      state_.t_min_final_[fp.target_][0].add_bitfield(
           oneToAll_tMin{tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_}), all_set});
+#endif
 
 #ifdef TB_OA_COLLECT_STATS
   stats_.n_tmin_comparisons_ += n_comparisons_tmin;
@@ -476,6 +481,7 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
         while (sigma <= 1) {
           std::int32_t const sigma_t = tau_dep_t_i->days();
           auto const d_seg = d + sigma - sigma_t;
+          auto const day_offset_temp = compute_day_offset(base_.v_, static_cast<std::uint16_t>(d_seg));
 
           if(tt_.to_unixtime(day_idx_t{d_seg}, tau_dep_t_i->as_duration()) > worst_time_at_dest) {
             break;
@@ -514,8 +520,8 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
             std::vector<std::string_view> trip_names;
             trip_names.emplace_back(tt_.trip_id_strings_[tt_.trip_ids_[tt_.merged_trips_[tt_.transport_to_trip_section_[t].front()].front()].front()].view());
 
-            auto [enqueued, n_comparison] = state_.q_n_.enqueue(static_cast<std::uint16_t>(d_seg), t, i, 0U, TRANSFERRED_FROM_NULL,
-                                new_days, trip_names);
+            auto [enqueued, n_comparison] = state_.q_n_.enqueue(static_cast<std::uint16_t>(day_offset_temp), t, i, 0U, TRANSFERRED_FROM_NULL,
+                                                                new_days, trip_names, false);
             if(!enqueued) {
               stats_.n_enqueue_prevented_by_reached_++;
             }
@@ -523,7 +529,7 @@ void oneToAll_engine::handle_start_footpath(std::int32_t const d,
             stats_.n_reached_comparisons_ += n_comparison;
 #endif
 #else
-            auto [enqueued, n_comparison] = state_.q_n_.enqueue(static_cast<std::uint16_t>(d_seg), t, i, 0U, TRANSFERRED_FROM_NULL,
+            auto [enqueued, n_comparison] = state_.q_n_.enqueue(static_cast<std::uint16_t>(day_offset_temp), t, i, 0U, TRANSFERRED_FROM_NULL,
                                 new_days);
             if(!enqueued) {
               stats_.n_enqueue_prevented_by_reached_++;

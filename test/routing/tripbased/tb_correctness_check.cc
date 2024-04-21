@@ -134,9 +134,11 @@ TEST(oa_correctness, test_bitfield_idx) {
   std::cout << "Peak memory usage: " << result_stats.algo_stats_.peak_memory_usage_ << "\n";
   std::cout << "Max queue size: " << result_stats.algo_stats_.n_largest_queue_size << "\n";
 
+  std::ofstream testfile("/home/jona/uni/test_compare.txt");
   int count = 0;
   int max_transfers = 0;
   for (const auto& element : results) {
+    testfile << element.size() << "\n";
     count += element.size();
     for (const auto& journey : element) {
       if (journey.transfers_ > max_transfers) {
@@ -144,6 +146,8 @@ TEST(oa_correctness, test_bitfield_idx) {
       }
     }
   }
+  testfile.close();
+
   TBDL << "Number of trips in total: " << count
        << " Max Transfers: " << max_transfers << "\n";
 
@@ -154,9 +158,18 @@ TEST(oa_correctness, test_bitfield_idx) {
   int count_equal = 0;
   int count_equal_diffs = 0;
 
-  std::vector<unsigned long> idx_list{10, 49};
-  //for(unsigned long idx = 10; idx < 50; ++idx) {
-  for(auto idx : idx_list) {
+  std::vector<unsigned long> idx_list{
+      51,
+  123,
+  383,
+  385,
+  386,
+  387,
+  388,
+  446,
+  485};
+  for(unsigned long idx = 10; idx < 300; ++idx) {
+  //for(auto idx : idx_list) {
     location_idx_t location = location_idx_t{idx};
     std::string filename =
         outputDir + std::to_string(location.v_) + ".txt";
@@ -213,7 +226,7 @@ TEST(oa_correctness, test_bitfield_idx) {
         } else {
           count_less++;
         }
-        outputFile2 << "Diff: Day: " << day << ", TB: " << results_tb.size() << ", OA: " << results_oa.size() << "\n";
+        outputFile2 << "Diff: Day: " << day << ", TB: " << results_tb.size() << ", OA: " << results_oa.size() << ", RP: " << results_rp.size() << "\n";
 
         std::vector<routing::journey> diff_oa;
         std::vector<routing::journey> diff_tb;
@@ -310,12 +323,13 @@ TEST(oa_correctness, test_bitfield_idx) {
         }
         if(first) {
           count_equal_diffs++;
-        } else {
+        } /*else {
           outputFile2 << "Day: " << day << ", OA: " << results_oa.size() << ", TB: " << results_tb.size() << ", RP: " << results_rp.size() << "\n";
-        }
+        }*/
       }
       outputFile2.close();
     }
+    std::cout << "Count less: " << count_less << ", Count larger: " << count_larger << ", Count equal: " << count_equal << ", Count equal diff: " << count_equal_diffs << "\n";
   }
   std::cout << "Count less: " << count_less << ", Count larger: " << count_larger << ", Count equal: " << count_equal << ", Count equal diff: " << count_equal_diffs << "\n";
 }

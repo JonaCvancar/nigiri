@@ -5,10 +5,10 @@
 #include "date/date.h"
 
 #ifndef VBB_FROM
-#define VBB_FROM (2023_y / December / 14)
+#define VBB_FROM (2022_y / December / 9)
 #endif
 #ifndef VBB_TO
-#define VBB_TO (2024_y / December / 14)
+#define VBB_TO (2023_y / December / 9)
 #endif
 
 #ifndef GERMANY_FROM

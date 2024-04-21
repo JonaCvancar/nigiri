@@ -86,7 +86,7 @@ std::tuple<bool, std::uint16_t> onetoall_q_n::enqueue(std::uint16_t const transp
 
 #else
 
-#ifdef TBTB_OA_DEBUG_TRIPS
+#ifdef TB_OA_DEBUG_TRIPS
           segments_.emplace_back(transport_segment_idx, stop_idx, std::get<0>(tuple),
                                  transferred_from, std::get<1>(tuple), trip_names);
 #else
@@ -106,7 +106,6 @@ std::tuple<bool, std::uint16_t> onetoall_q_n::enqueue(std::uint16_t const transp
           // update reached
           r_.update(transport_segment_idx, std::get<1>(tuple), stop_idx,
                     n_transfers);
-          //return true;
         }
       }
     }

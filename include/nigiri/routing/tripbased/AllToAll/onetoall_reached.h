@@ -35,8 +35,8 @@ namespace nigiri::routing::tripbased {
 
     struct onetoall_reached {
         onetoall_reached() = delete;
-        explicit onetoall_reached(timetable const& tt) : tt_(tt) {
-            data_.resize(tt.n_routes());
+        explicit onetoall_reached(timetable& tt) : tt_(tt) {
+          data_.resize(tt.n_routes());
         }
 
         void reset();
@@ -50,7 +50,7 @@ namespace nigiri::routing::tripbased {
                             std::uint16_t const n_transfers,
                             bitfield const operating_days);
 
-        timetable const& tt_;
+        timetable& tt_;
 
         // reached stops per route
         std::vector<pareto_set<onetoall_reached_entry>> data_;

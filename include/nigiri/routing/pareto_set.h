@@ -36,7 +36,7 @@ struct pareto_set {
 #ifdef TB_OA_COLLECT_STATS
   std::tuple<bool, iterator, iterator, std::uint16_t> add_bitfield(T&& el) {
 #else
-std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
+    std::tuple<bool, iterator, iterator> add_bitfield(T&& el) {
 #endif
 #ifdef TB_OA_COLLECT_STATS
     std::uint16_t n_comparisons = 0U;

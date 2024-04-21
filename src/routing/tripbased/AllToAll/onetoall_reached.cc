@@ -41,8 +41,6 @@ std::tuple<std::vector<std::tuple<std::uint16_t, bitfield>>, uint16_t> onetoall_
         static_cast<uint16_t>(tt_.route_location_seq_[route_idx].size() - 1);
     auto stop_idx_min = stop_idx_max;
 
-    //TBDL << "Route: " << route_idx <<" Segment_idx: " << transport_segment_idx << " Max_Station: " << stop_idx_max << " operating days: " << operating_days.blocks_[0] <<"\n";
-
     // find minimal stop index among relevant entries
     for (auto const& re : data_[route_idx.v_]) {
       if( (operating_days & re.bitfield_).any() ){

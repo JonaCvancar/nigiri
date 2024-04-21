@@ -22,7 +22,11 @@ namespace nigiri::routing::tripbased {
 
     struct oneToAll_tMin {
       bool dominates(oneToAll_tMin const& o) const {
-        return time_ < o.time_;
+#ifdef TB_OA_NEW_TMIN
+        return time_ <= o.time_ && transfers_ <= o.transfers_;
+#else
+        return time_ <= o.time_;
+#endif
       }
 
       void set_bitfield(bitfield bf) {
@@ -31,11 +35,18 @@ namespace nigiri::routing::tripbased {
 
 #if defined(EQUAL_JOURNEY)
       bool equal(oneToAll_tMin const& o ) {
+#ifdef TB_OA_NEW_TMIN
+        return time_ == o.time_ && transfers_ == o.transfers_;
+#else
         return time_ == o.time_;
+#endif
       }
 #endif
 
       unixtime_t time_;
+#ifdef TB_OA_NEW_TMIN
+      u_int8_t transfers_;
+#endif
       bitfield bitfield_;
     };
 
@@ -55,19 +66,29 @@ namespace nigiri::routing::tripbased {
 #endif
         {
             t_min_.resize(tt.n_locations());
+            t_min_final_.resize(tt.n_locations());
 
             bitfield bf_1 = bitfield();
             for(unsigned int bf_idx = 0; bf_idx < bf_1.size(); bf_idx++) {
               bf_1.set(size_t{bf_idx}, true);
             }
 
+#ifdef TB_OA_NEW_TMIN
             for(unsigned int i = 0; i < tt.n_locations(); ++i) {
-              //t_min_[i].resize(kNumTransfersMax, unixtime_t::max());
+              t_min_[i].add_bitfield(oneToAll_tMin{unixtime_t::max(), kMaxTransfers, bf_1});
+              t_min_final_[i].add_bitfield(oneToAll_tMin{unixtime_t::max(), kMaxTransfers, bf_1});
+            }
+#else
+            for(unsigned int i = 0; i < tt.n_locations(); ++i) {
               t_min_[i].resize(kNumTransfersMax);
+              t_min_final_[i].resize(kNumTransfersMax);
               for(unsigned int j = 0; j < kNumTransfersMax; j++) {
                 t_min_[i][j].add_bitfield(oneToAll_tMin{unixtime_t::max(), bf_1});
+                t_min_final_[i][j].add_bitfield(oneToAll_tMin{unixtime_t::max(), bf_1});
               }
             }
+#endif
+
             q_n_.start_.reserve(kNumTransfersMax);
             q_n_.end_.reserve(kNumTransfersMax);
             q_n_.segments_.reserve(10000);
@@ -75,23 +96,31 @@ namespace nigiri::routing::tripbased {
         }
 
         void reset(day_idx_t new_base) {
-            //std::fill(t_min_.begin(), t_min_.end(), unixtime_t::max());
-            r_.reset();
-            q_n_.reset(new_base);
-        }
+          bitfield bf_1 = bitfield();
+          for(unsigned int bf_idx = 0; bf_idx < bf_1.size(); bf_idx++) {
+            bf_1.set(size_t{bf_idx}, true);
+          }
 
-        bool check_if_better_t_min(location_idx_t const loc,
-                                   std::uint8_t const n,
-                                   unixtime_t const time,
-                                   bitfield const operating_days) {
-          for(auto& t_min : t_min_[loc.v_][n]) {
-            if( (t_min.bitfield_ & operating_days).any() ) {
-              if(time < t_min.time_) {
-                return true;
-              }
+#ifdef TB_OA_NEW_TMIN
+          for(unsigned int i = 0; i < t_min_.size(); ++i) {
+            t_min_[i].clear();
+            t_min_final_[i].clear();
+            t_min_[i].add_bitfield(oneToAll_tMin{unixtime_t::max(), kMaxTransfers, bf_1});
+            t_min_final_[i].add_bitfield(oneToAll_tMin{unixtime_t::max(), kMaxTransfers, bf_1});
+          }
+#else
+          for(unsigned int i = 0; i < t_min_.size(); ++i) {
+            for(unsigned int j = 0; j < kNumTransfersMax; j++) {
+              t_min_[i][j].clear();
+              t_min_final_[i][j].clear();
+              t_min_[i][j].add_bitfield(oneToAll_tMin{unixtime_t::max(), bf_1});
+              t_min_final_[i][j].add_bitfield(oneToAll_tMin{unixtime_t::max(), bf_1});
             }
           }
-          return false;
+#endif
+
+          r_.reset();
+          q_n_.reset(new_base);
         }
 
         // transfer set built by preprocessor
@@ -101,8 +130,13 @@ namespace nigiri::routing::tripbased {
         onetoall_reached r_;
 
         // minimum arrival times per number of transfers
-        //std::vector<std::vector<unixtime_t>> t_min_;
+#ifdef TB_OA_NEW_TMIN
+        std::vector<pareto_set<oneToAll_tMin>> t_min_;
+        std::vector<pareto_set<oneToAll_tMin>> t_min_final_;
+#else
         std::vector<std::vector<pareto_set<oneToAll_tMin>>> t_min_;
+        std::vector<std::vector<pareto_set<oneToAll_tMin>>> t_min_final_;
+#endif
 
         // queues of transport segments
         onetoall_q_n q_n_;
