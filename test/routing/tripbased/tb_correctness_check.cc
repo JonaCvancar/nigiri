@@ -92,12 +92,26 @@ TEST(oa_correctness, test_bitfield_idx) {
   timetable tt;
   tt.date_range_ = test_full_period();
   register_special_stations(tt);
+
+  auto const start_timer_load = steady_clock::now();
   load_timetable(src, loader::hrd::hrd_test_avv,
                  loader::fs_dir{"/home/jona/uni/thesis/data/input/aachen"}, tt);
   finalize(tt);
+  auto const stop_timer_load = steady_clock::now();
+  TBDL << "Loading took: "
+       << std::chrono::duration_cast<std::chrono::milliseconds>(stop_timer_load -
+                                                                start_timer_load).count() <<  "\n";
+  rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  std::cout << static_cast<double>(r_usage.ru_maxrss) / 1e6 << "\n";
 
   routing::tripbased::transfer_set ts;
   build_transfer_set(tt, ts, 10);
+
+  std::cout << "Trip names size: " << tt.trip_display_names_.size() << "\n";
+
+  std::cout << "Locations: " << tt.n_locations() << "\n";
+  std::cout << "Lines: " << tt.trip_lines_.size() << "\n";
 
   location_idx_t start =
       tt.locations_.location_id_to_idx_.at({"0001008", src}); // Aachen Hbf
@@ -118,6 +132,11 @@ TEST(oa_correctness, test_bitfield_idx) {
 
   auto results = *result_stats.journeys_;
 
+  bool test = true;
+  if(test) {
+    return;
+  }
+
   std::cout << "Stats:\n";
 #ifdef TB_ONETOALL_BITFIELD_IDX
   std::cout << "New bitfields: " << result_stats.search_stats_.n_new_bitfields_ << "\n";
@@ -126,9 +145,11 @@ TEST(oa_correctness, test_bitfield_idx) {
                                                                                  (result_stats.search_stats_.n_new_bitfields_ * sizeof(bitfield))) / 1e9 << "GB\n";
 #endif
   std::cout << "Journeys found: " << result_stats.search_stats_.n_results_in_interval << "\n";
+#ifdef TB_OA_COLLECT_STATS
   std::cout << "Tmin comparisons: " << result_stats.algo_stats_.n_tmin_comparisons_ << "\n";
   std::cout << "Reached comparison: " << result_stats.algo_stats_.n_reached_comparisons_ << "\n";
   std::cout << "Results comparison: " << result_stats.algo_stats_.n_results_comparisons_ << "\n";
+#endif
   std::cout << "Enqueued prevented by reached: " << result_stats.algo_stats_.n_enqueue_prevented_by_reached_ << "\n";
   std::cout << "Segments pruned: " << result_stats.algo_stats_.n_segments_pruned_ << "\n";
   std::cout << "Peak memory usage: " << result_stats.algo_stats_.peak_memory_usage_ << "\n";

@@ -79,9 +79,15 @@ struct journey_bitfield {
     return duration_t{std::abs((dest_time_ - start_time_).count())};
   }
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+  void set_bitfield(bitfield_idx_t bf) {
+    bitfield_ = bf;
+  }
+#else
   void set_bitfield(bitfield bf) {
     bitfield_ = bf;
   }
+#endif
 
   void print(std::ostream&,
              timetable const&,
@@ -93,7 +99,11 @@ struct journey_bitfield {
   unixtime_t dest_time_;
   location_idx_t dest_;
   std::uint8_t transfers_{0U};
+#ifdef TB_ONETOALL_BITFIELD_IDX
+  bitfield_idx_t bitfield_;
+#else
   bitfield bitfield_;
+#endif
 #ifdef TB_OA_DEBUG_TRIPS
   std::vector<std::string_view> trip_names_;
 #endif

@@ -55,6 +55,8 @@ int main() {
   std::mt19937 gen(rd());
 
   unsigned long location_count = locations.size();
+
+  std::cout << "location length: " << locations.size() << "\n";
   std::uniform_int_distribution<> dis_start(0, static_cast<int>(location_count));
 
   std::uniform_int_distribution<> dis(0, static_cast<int>(location_count));
@@ -85,7 +87,7 @@ int main() {
 
     std::ifstream infile_temp(filename);
     infile_temp.seekg(0, std::ios::end); // Move to the end of the file
-    if (infile.tellg() == 0) {
+    if ( !(infile_temp.tellg() > 0)) {
       infile_temp.close();
 
       std::ofstream outputFile(filename, std::ios::app);
@@ -104,9 +106,8 @@ int main() {
                  << " peak_memory"
                  << " exceeds_preprocessor"
                  << " equal_journey"
-                 << " queue_handling"
+                 << " new_tmin"
                  << " bitfield_idx"
-                 << " check_previous"
                  << " collect_stats"
                  << "\n";
       outputFile.close();
@@ -160,9 +161,8 @@ int main() {
                  << " " << result_stats.algo_stats_.peak_memory_usage_
                  << " " << (result_stats.algo_stats_.peak_memory_usage_ > result_stats.algo_stats_.pre_memory_usage_)
                  << " " << result_stats.algo_stats_.equal_journey_
-                 << " " << result_stats.algo_stats_.tb_queue_handling_
+                 << " " << result_stats.algo_stats_.tb_new_tmin_
                  << " " << result_stats.algo_stats_.tb_onetoall_bitfield_idx_
-                 << " " << result_stats.algo_stats_.tb_oa_check_previous_n_
                  << " " << result_stats.algo_stats_.tb_oa_collect_stats_
                  << "\n";
 
@@ -183,6 +183,8 @@ int main() {
 
       // Close the file
       outfile_stops.close();
+    } else {
+      break;
     }
   }
 }

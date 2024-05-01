@@ -32,8 +32,22 @@ int main() {
   tt.date_range_ = vbb_period_oa();
   register_special_stations(tt);
   constexpr auto const src = source_idx_t{0U};
+
+  auto const start_timer_load = steady_clock::now();
   load_timetable(loader_config{0, "Europe/Berlin"}, src, vbb_dir_oa, tt);
   finalize(tt);
+  auto const stop_timer_load = steady_clock::now();
+  TBDL << "Loading took: " << std::chrono::duration_cast<std::chrono::milliseconds>(stop_timer_load -
+                                                                start_timer_load).count() <<  "\n";
+
+  rusage r_usage;
+  getrusage(RUSAGE_SELF, &r_usage);
+  std::cout << static_cast<double>(r_usage.ru_maxrss) / 1e6 << "\n";
+
+  std::cout << "Trip names size: " << tt.trip_display_names_.size() << "\n";
+
+  std::cout << "Locations: " << tt.n_locations() << "\n";
+  std::cout << "Lines: " << tt.trip_lines_.size() << "\n";
 
   // run preprocessing
   transfer_set ts;
@@ -105,9 +119,8 @@ int main() {
                  << " peak_memory"
                  << " exceeds_preprocessor"
                  << " equal_journey"
-                 << " queue_handling"
+                 << " new_tmin"
                  << " bitfield_idx"
-                 << " check_previous"
                  << " collect_stats"
                  << "\n";
       outputFile.close();
@@ -161,9 +174,8 @@ int main() {
                  << " " << result_stats.algo_stats_.peak_memory_usage_
                  << " " << (result_stats.algo_stats_.peak_memory_usage_ > result_stats.algo_stats_.pre_memory_usage_)
                  << " " << result_stats.algo_stats_.equal_journey_
-                 << " " << result_stats.algo_stats_.tb_queue_handling_
+                 << " " << result_stats.algo_stats_.tb_new_tmin_
                  << " " << result_stats.algo_stats_.tb_onetoall_bitfield_idx_
-                 << " " << result_stats.algo_stats_.tb_oa_check_previous_n_
                  << " " << result_stats.algo_stats_.tb_oa_collect_stats_
                  << "\n";
 

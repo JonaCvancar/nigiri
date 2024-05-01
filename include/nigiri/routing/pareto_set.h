@@ -5,6 +5,10 @@
 #include <vector>
 #include <iostream>
 #include "nigiri/types.h"
+#include "nigiri/timetable.h"
+
+#include "utl/get_or_create.h"
+
 
 namespace nigiri {
 
@@ -33,6 +37,119 @@ struct pareto_set {
             end()};
   }
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+  bitfield_idx_t get_or_create_bfi(bitfield const& bf, timetable& tt, hash_map<bitfield, bitfield_idx_t>* bitfield_to_bitfield_idx) {
+    return utl::get_or_create(*bitfield_to_bitfield_idx, bf, [&bf, &tt, &bitfield_to_bitfield_idx]() {
+      auto const bfi = tt.register_bitfield(bf);
+      bitfield_to_bitfield_idx->emplace(bf, bfi);
+      return bfi;
+    });
+  }
+#endif
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+#ifdef TB_OA_COLLECT_STATS
+  std::tuple<bool, iterator, iterator, std::uint16_t> add_bitfield_idx(T&& el, timetable& tt, hash_map<bitfield, bitfield_idx_t>* bitfield_to_bitfield_idx) {
+#else
+  std::tuple<bool, iterator, iterator> add_bitfield_idx(T&& el, timetable& tt, hash_map<bitfield, bitfield_idx_t>* bitfield_to_bitfield_idx) {
+#endif
+#ifdef TB_OA_COLLECT_STATS
+    std::uint16_t n_comparisons = 0U;
+#endif
+    auto n_removed = std::size_t{0};
+#if defined(EQUAL_JOURNEY)
+    bool equal = false;
+    unsigned long equal_idx = 0U;
+#endif
+    for (auto i = 0U; i < els_.size(); ++i) {
+#if defined(EQUAL_JOURNEY)
+      if(!equal) {
+#ifdef TB_OA_COLLECT_STATS
+        n_comparisons++;
+#endif
+        if (els_[i].equal(el)) {
+          els_[i - n_removed] = els_[i];
+          equal = true;
+          equal_idx = i - n_removed;
+          continue;
+        }
+      }
+#endif
+
+      if( !(tt.bitfields_[els_[i].bitfield_] & tt.bitfields_[el.bitfield_]).any() ) {
+        els_[i - n_removed] = els_[i];
+        continue;
+      }
+
+#ifdef TB_OA_COLLECT_STATS
+      n_comparisons++;
+#endif
+      if (els_[i].dominates(el)) {
+        if ((tt.bitfields_[el.bitfield_] & ~tt.bitfields_[els_[i].bitfield_]).any()) {
+          auto idx = get_or_create_bfi(tt.bitfields_[el.bitfield_] & ~tt.bitfields_[els_[i].bitfield_], tt, bitfield_to_bitfield_idx);
+          el.set_bitfield(idx);
+        } else {
+#ifdef TB_OA_COLLECT_STATS
+          return {false, end(), std::next(begin(), i), n_comparisons};
+#else
+          return {false, end(), std::next(begin(), i)};
+#endif
+        }
+      }
+
+#ifdef TB_OA_COLLECT_STATS
+      n_comparisons++;
+#endif
+      if (el.dominates(els_[i])) {
+        if( (tt.bitfields_[els_[i].bitfield_] & ~tt.bitfields_[el.bitfield_]).any()) {
+          auto idx = get_or_create_bfi(tt.bitfields_[els_[i].bitfield_] & ~tt.bitfields_[el.bitfield_], tt, bitfield_to_bitfield_idx);
+          els_[i].set_bitfield(idx);
+        } else {
+          n_removed++;
+          continue;
+        }
+      }
+      els_[i - n_removed] = els_[i];
+    }
+#if defined(EQUAL_JOURNEY)
+    if(equal) {
+      if(els_[equal_idx].equal(el)) {
+        auto idx = get_or_create_bfi(tt.bitfields_[els_[equal_idx].bitfield_] | tt.bitfields_[el.bitfield_], tt, bitfield_to_bitfield_idx);
+        els_[equal_idx].set_bitfield(idx);
+      } else {
+        std::cout << "Equal index wrong.\n";
+      }
+      els_.resize(els_.size() - n_removed);
+#ifdef TB_OA_COLLECT_STATS
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end(), n_comparisons};
+#else
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end()};
+#endif
+    }
+#endif
+
+    els_.resize(els_.size() - n_removed + 1);
+    if(tt.bitfields_[el.bitfield_].any()) {
+      els_.back() = std::move(el);
+#ifdef TB_OA_COLLECT_STATS
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end(), n_comparisons};
+#else
+      return {true, std::next(begin(), static_cast<unsigned>(els_.size() - 1)),
+              end()};
+#endif
+    } else {
+#ifdef TB_OA_COLLECT_STATS
+      return {false, end(), std::next(begin()), n_comparisons};
+#else
+      return {false, end(), std::next(begin())};
+#endif
+    }
+  }
+#endif
+
 #ifdef TB_OA_COLLECT_STATS
   std::tuple<bool, iterator, iterator, std::uint16_t> add_bitfield(T&& el) {
 #else
@@ -48,14 +165,16 @@ struct pareto_set {
 #endif
     for (auto i = 0U; i < els_.size(); ++i) {
 #if defined(EQUAL_JOURNEY)
+      if(!equal) {
 #ifdef TB_OA_COLLECT_STATS
-      n_comparisons++;
+        n_comparisons++;
 #endif
-      if(els_[i].equal(el)) {
-        els_[i - n_removed] = els_[i];
-        equal = true;
-        equal_idx = i - n_removed;
-        continue;
+        if (els_[i].equal(el)) {
+          els_[i - n_removed] = els_[i];
+          equal = true;
+          equal_idx = i - n_removed;
+          continue;
+        }
       }
 #endif
 
@@ -126,34 +245,6 @@ struct pareto_set {
 #else
       return {false, end(), std::next(begin())};
 #endif
-    }
-  }
-
-  bool check(T&& el) {
-    for (auto i = 0U; i < els_.size(); ++i) {
-#if defined(EQUAL_JOURNEY)
-      if(els_[i].equal(el)) {
-        continue;
-      }
-#endif
-
-      if( !(els_[i].bitfield_ & el.bitfield_).any() ) {
-        continue;
-      }
-
-      if (els_[i].dominates(el)) {
-        if ((el.bitfield_ & ~els_[i].bitfield_).any()) {
-          el.set_bitfield(el.bitfield_ & ~els_[i].bitfield_);
-        } else {
-          return false;
-        }
-      }
-    }
-
-    if(el.bitfield_.any()) {
-      return true;
-    } else {
-      return false;
     }
   }
 

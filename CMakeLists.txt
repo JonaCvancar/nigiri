@@ -144,16 +144,21 @@ add_executable(aachen_oa ${aachen_files_oa})
 target_link_libraries(aachen_oa PRIVATE nigiri)
 target_compile_features(aachen_oa PUBLIC cxx_std_23)
 
+file(GLOB_RECURSE aachen_query_files_oa tripbased_onetoall/aachen_oa_query.cc)
+add_executable(aachen_oa_query ${aachen_query_files_oa})
+target_link_libraries(aachen_oa_query PRIVATE nigiri)
+target_compile_features(aachen_oa_query PUBLIC cxx_std_23)
+
 file(GLOB_RECURSE vbb_files_oa tripbased_onetoall/vbb_oa.cc)
 add_executable(vbb_oa ${vbb_files_oa})
 target_link_libraries(vbb_oa PRIVATE nigiri)
 target_compile_features(vbb_oa PUBLIC cxx_std_23)
 
+file(GLOB_RECURSE vbb_query_files_oa tripbased_onetoall/vbb_oa_query.cc)
+add_executable(vbb_oa_query ${vbb_query_files_oa})
+target_link_libraries(vbb_oa_query PRIVATE nigiri)
+target_compile_features(vbb_oa_query PUBLIC cxx_std_23)
+
 file(GLOB_RECURSE generate_test_stop_files tripbased_onetoall/generate_test_stops.cpp)
 add_executable(generate_test_stop ${generate_test_stop_files})
 target_compile_features(generate_test_stop PUBLIC cxx_std_23)
-
-#file(GLOB_RECURSE germany_files_oa tripbased_onetoall/germany_oa.cc)
-#add_executable(germany_oa ${germany_files_oa})
-#target_link_libraries(germany_oa PRIVATE nigiri)
-#target_compile_features(germany_oa PUBLIC cxx_std_23)

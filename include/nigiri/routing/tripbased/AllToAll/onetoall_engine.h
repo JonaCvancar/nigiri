@@ -26,9 +26,8 @@ namespace nigiri::routing::tripbased {
 
     struct oneToAll_stats {
         bool  equal_journey_{false};
-        bool  tb_queue_handling_{false};
+        bool  tb_new_tmin_{false};
         bool  tb_onetoall_bitfield_idx_{false};
-        bool  tb_oa_check_previous_n_{false};
         bool  tb_oa_collect_stats_{false};
         std::uint64_t n_largest_queue_size{0U};
         std::uint64_t n_segments_enqueued_{0U};
@@ -112,7 +111,11 @@ namespace nigiri::routing::tripbased {
         );
 #endif
 
-    private:
+        void set_all_idx(bitfield_idx_t idx) {
+          state_.set_all_index(idx);
+        }
+
+      private:
         void handle_start(unixtime_t const start_time,
                         oneToAll_start const&,
                         unixtime_t const,
@@ -142,6 +145,16 @@ namespace nigiri::routing::tripbased {
         void add_initial_footpath(query const& q, journey_bitfield& j) const;
 
         bool is_start_location(query const&, location_idx_t const) const;
+
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        bitfield_idx_t get_or_create_bfi(bitfield const& bf) {
+          return utl::get_or_create(bitfield_to_bitfield_idx_, bf, [&bf, this]() {
+            auto const bfi = tt_.register_bitfield(bf);
+            bitfield_to_bitfield_idx_.emplace(bf, bfi);
+            return bfi;
+          });
+        }
+#endif
 
 #ifdef TB_ONETOALL_BITFIELD_IDX
         timetable& tt_;

@@ -123,6 +123,10 @@ namespace nigiri::routing::tripbased {
           q_n_.reset(new_base);
         }
 
+        void set_all_index(bitfield_idx_t idx) {
+          all_idx_ = idx;
+        }
+
         // transfer set built by preprocessor
         transfer_set const& ts_;
 
@@ -142,6 +146,8 @@ namespace nigiri::routing::tripbased {
         onetoall_q_n q_n_;
 
         std::vector<oneToAll_start> query_starts_;
+
+        bitfield_idx_t all_idx_;
     };
 
 }  // namespace nigiri::routing::tripbased

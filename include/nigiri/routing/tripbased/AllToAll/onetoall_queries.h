@@ -40,7 +40,11 @@ void tripbased_onetoall_query(
 
     int transfers = kMaxTransfers;
     for(auto const& journey : temp_oa) {
+#ifdef TB_ONETOALL_BITFIELD_IDX
+      if(tt.bitfields_[journey.bitfield_].test(static_cast<std::size_t>(d_start))) {
+#else
       if(journey.bitfield_.test(static_cast<std::size_t>(d_start))) {
+#endif
         if(tt.day_idx_mam(journey.start_time_).second.count() > tt.day_idx_mam(journey.dest_time_).second.count()) {
           if(tt.day_idx_mam(journey.dest_time_).second.count() > mam_start) {
             continue;
@@ -71,7 +75,11 @@ void tripbased_onetoall_query(
   } else {
     //TBDL << "Profile query.\n";
     for(auto const& journey : oa) {
+#ifdef TB_ONETOALL_BITFIELD_IDX
+      if(tt.bitfields_[journey.bitfield_].test(static_cast<std::size_t>(d_start))) {
+#else
       if(journey.bitfield_.test(static_cast<std::size_t>(d_start))) {
+#endif
         if(tt.day_idx_mam(journey.start_time_).second.count() >= mam_start && tt.day_idx_mam(journey.start_time_).second.count() < mam_end) {
           routing::journey j{};
           j.start_time_ = journey.start_time_;

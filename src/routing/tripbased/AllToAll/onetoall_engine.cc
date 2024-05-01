@@ -30,14 +30,11 @@ oneToAll_engine::oneToAll_engine(timetable& tt,
 #ifdef EQUAL_JOURNEY
   stats_.equal_journey_ = true;
 #endif
-#ifdef TB_QUEUE_HANDLING
-  stats_.tb_queue_handling_ = true;
-#endif
 #ifdef TB_ONETOALL_BITFIELD_IDX
   stats_.tb_onetoall_bitfield_idx_ = true;
 #endif
-#ifdef TB_OA_CHECK_PREVIOUS_N
-  stats_.tb_oa_check_previous_n_ = true;
+#ifdef TB_OA_NEW_TMIN
+  stats_.tb_new_tmin_ = true;
 #endif
 #ifdef TB_OA_COLLECT_STATS
   stats_.tb_oa_collect_stats_ = true;
@@ -64,14 +61,11 @@ oneToAll_engine::oneToAll_engine(timetable const& tt,
 #ifdef EQUAL_JOURNEY
   stats_.equal_journey_ = true;
 #endif
-#ifdef TB_QUEUE_HANDLING
-  stats_.tb_queue_handling_ = true;
-#endif
 #ifdef TB_ONETOALL_BITFIELD_IDX
   stats_.tb_onetoall_bitfield_idx_ = true;
 #endif
-#ifdef TB_OA_CHECK_PREVIOUS_N
-  stats_.tb_oa_check_previous_n_ = true;
+#ifdef TB_OA_NEW_TMIN
+  stats_.tb_new_tmin_ = true;
 #endif
 #ifdef TB_OA_COLLECT_STATS
   stats_.tb_oa_collect_stats_ = true;
@@ -124,31 +118,11 @@ void oneToAll_engine::execute(unixtime_t const start_time,
 #ifndef NDEBUG
     TBDL << "Handle " << std::to_string(state_.q_n_.end_[n] - state_.q_n_.start_[n]) << " Segments after n=" << std::to_string(n) << " transfers.\n";
 #endif
-
-#ifdef TB_QUEUE_HANDLING
-    stats_.n_segments_enqueued_ += state_.q_n_.size();
-    if(stats_.n_largest_queue_size < state_.q_n_.size()) {
-      stats_.n_largest_queue_size = state_.q_n_.size();
-    }
-#endif
     // iterate trip segments in Q_n
     for (auto q_cur = state_.q_n_.start_[n]; q_cur != state_.q_n_.end_[n];
          ++q_cur) {
       handle_segment(start_time, worst_time_at_dest, results, n, q_cur);
     }
-
-#ifdef TB_QUEUE_HANDLING
-    state_.q_n_.erase(state_.q_n_.start_[n], state_.q_n_.end_[n]);
-
-    std::uint8_t n2 = n + 1;
-    std::uint32_t elements_deleted = state_.q_n_.end_[n] - state_.q_n_.start_[n];
-    for(; n2 != state_.q_n_.start_.size(); ++n2) {
-      state_.q_n_.start_[n2] -= elements_deleted;
-      state_.q_n_.end_[n2] -= elements_deleted;
-    }
-    state_.q_n_.start_[n2] = 0;
-    state_.q_n_.end_[n2] = 0;
-#endif
   }
 
 #ifndef NDEBUG
@@ -160,12 +134,10 @@ void oneToAll_engine::execute(unixtime_t const start_time,
   TBDL <<  "Finished all segments. Results count: " << count << " Que length: " << state_.q_n_.size() << "\n";
 #endif
 
-#ifndef TB_QUEUE_HANDLING
   stats_.n_segments_enqueued_ += state_.q_n_.size();
   if(stats_.n_largest_queue_size < state_.q_n_.size()) {
     stats_.n_largest_queue_size = state_.q_n_.size();
   }
-#endif
   stats_.empty_n_ = n;
   stats_.max_transfers_reached_ = n == max_transfers;
 }
@@ -221,13 +193,29 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
 
     if (stop_temp.out_allowed() && t_cur < worst_time_at_dest) {
 #ifdef TB_OA_NEW_TMIN
+#ifdef TB_OA_COLLECT_STATS
       auto [non_dominated_tmin, tmin_begin, tmin_end, tmin_comparisons] =
           state_.t_min_[location_id.v_].add_bitfield(
               oneToAll_tMin{t_cur, n, operating_days});
 #else
+      auto [non_dominated_tmin, tmin_begin, tmin_end] =
+          state_.t_min_[location_id.v_].add_bitfield(
+              oneToAll_tMin{t_cur, n, operating_days});
+#endif
+#else
+#ifdef TB_OA_COLLECT_STATS
       auto [non_dominated_tmin, tmin_begin, tmin_end, tmin_comparisons] =
           state_.t_min_[location_id.v_][n].add_bitfield(
               oneToAll_tMin{t_cur, operating_days});
+#else
+      auto [non_dominated_tmin, tmin_begin, tmin_end] =
+          state_.t_min_[location_id.v_][n].add_bitfield(
+              oneToAll_tMin{t_cur, operating_days});
+#endif
+#endif
+
+#ifdef TB_OA_COLLECT_STATS
+      stats_.n_tmin_comparisons_ += tmin_comparisons;
 #endif
 
       if (!non_dominated_tmin) {
@@ -236,38 +224,68 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
       }
 
 #ifdef TB_OA_NEW_TMIN
+#ifdef TB_OA_COLLECT_STATS
       auto [non_dominated_tmin_f, tmin_begin_f, tmin_end_f,
           tmin_comparisons_f] =
           state_.t_min_final_[location_id.v_].add_bitfield(
               oneToAll_tMin{t_cur, n, operating_days});
 #else
+      auto [non_dominated_tmin_f, tmin_begin_f, tmin_end_f] =
+          state_.t_min_final_[location_id.v_].add_bitfield(
+              oneToAll_tMin{t_cur, n, operating_days});
+#endif
+#else
+#ifdef TB_OA_COLLECT_STATS
       auto [non_dominated_tmin_f, tmin_begin_f, tmin_end_f,
-            tmin_comparisons_f] =
+          tmin_comparisons_f] =
           state_.t_min_final_[location_id.v_][n].add_bitfield(
               oneToAll_tMin{t_cur, operating_days});
+#else
+      auto [non_dominated_tmin_f, tmin_begin_f, tmin_end_f] =
+          state_.t_min_final_[location_id.v_][n].add_bitfield(
+              oneToAll_tMin{t_cur, operating_days});
+#endif
 #endif
 
 #ifdef TB_OA_COLLECT_STATS
       stats_.n_tmin_comparisons_ += tmin_comparisons_f;
 #endif
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+      auto idx = get_or_create_bfi(operating_days);
+#endif
       if (non_dominated_tmin_f) {
         journey_bitfield j{};
         j.start_time_ = start_time;
         j.dest_time_ = t_cur;
         j.dest_ = location_id;
         j.transfers_ = n;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+        j.bitfield_ = idx;
+#else
         j.bitfield_ = operating_days;
+#endif
 #ifdef TB_OA_DEBUG_TRIPS
         j.trip_names_ = seg.trip_names_;
 #endif
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+#ifdef TB_OA_COLLECT_STATS
+        auto [non_dominated_res, res_begin, res_end, res_comparisons] =
+            results[location_id.v_].add_bitfield_idx(std::move(j), tt_, &bitfield_to_bitfield_idx_);
+        stats_.n_results_comparisons_ += res_comparisons;
+#else
+        auto [non_dominated_res, res_begin, res_end] =
+            results[location_id.v_].add_bitfield_idx(std::move(j), tt_, &bitfield_to_bitfield_idx_);
+#endif
+#else
 #ifdef TB_OA_COLLECT_STATS
         auto [non_dominated_res, res_begin, res_end, res_comparisons] =
             results[location_id.v_].add_bitfield(std::move(j));
         stats_.n_results_comparisons_ += res_comparisons;
 #else
         results[location_id.v_].add_bitfield(std::move(j));
+#endif
 #endif
         ++stats_.n_journeys_found_;
       }
@@ -277,17 +295,30 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
         if (t_cur + i32_minutes{fp.duration_} > worst_time_at_dest) {
           continue;
         }
-
 #ifdef TB_OA_NEW_TMIN
+#ifdef TB_OA_COLLECT_STATS
         auto [non_dominated_fp, fp_begin, fp_end, fp_comparisons] =
             state_.t_min_final_[fp.target().v_].add_bitfield(
                 oneToAll_tMin{t_cur + i32_minutes{fp.duration_}, n,
                               operating_days});
 #else
+        auto [non_dominated_fp, fp_begin, fp_end] =
+            state_.t_min_final_[fp.target().v_].add_bitfield(
+                oneToAll_tMin{t_cur + i32_minutes{fp.duration_}, n,
+                              operating_days});
+#endif
+#else
+#ifdef TB_OA_COLLECT_STATS
         auto [non_dominated_fp, fp_begin, fp_end, fp_comparisons] =
             state_.t_min_final_[fp.target().v_][n].add_bitfield(
                 oneToAll_tMin{t_cur + i32_minutes{fp.duration_},
                               operating_days});
+#else
+        auto [non_dominated_fp, fp_begin, fp_end] =
+            state_.t_min_final_[fp.target().v_][n].add_bitfield(
+                oneToAll_tMin{t_cur + i32_minutes{fp.duration_},
+                              operating_days});
+#endif
 #endif
 
 #ifdef TB_OA_COLLECT_STATS
@@ -300,16 +331,29 @@ void oneToAll_engine::handle_segment(unixtime_t const start_time,
           j_fp.dest_time_ = t_cur + i32_minutes{fp.duration_};
           j_fp.dest_ = fp.target();
           j_fp.transfers_ = n;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+          j_fp.bitfield_ = idx;
+#else
           j_fp.bitfield_ = operating_days;
+#endif
 #ifdef TB_OA_DEBUG_TRIPS
           j_fp.trip_names_ = seg.trip_names_;
 #endif
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+#ifdef TB_OA_COLLECT_STATS
+          auto [non_dominated_res_fp, res_fp_begin, res_fp_end, res_fp_comparisons] = results[fp.target_].add_bitfield_idx(std::move(j_fp), tt_, &bitfield_to_bitfield_idx_);
+          stats_.n_results_comparisons_ += res_fp_comparisons;
+#else
+          auto [non_dominated_res_fp, res_fp_begin, res_fp_end] = results[fp.target_].add_bitfield_idx(std::move(j_fp), tt_, &bitfield_to_bitfield_idx_);
+#endif
+#else
 #ifdef TB_OA_COLLECT_STATS
           auto [non_dominated_res_fp, res_fp_begin, res_fp_end, res_fp_comparisons] = results[fp.target_].add_bitfield(std::move(j_fp));
           stats_.n_results_comparisons_ += res_fp_comparisons;
 #else
           results[fp.target_].add_bitfield(std::move(j_fp));
+#endif
 #endif
           ++stats_.n_journeys_found_;
         }
@@ -414,13 +458,25 @@ void oneToAll_engine::add_start_footpath_journey(unixtime_t const start_time, st
   }
 
 #ifdef TB_OA_NEW_TMIN
+#ifdef TB_OA_COLLECT_STATS
   auto [non_dominated_tmin, tmin_begin, tmin_end, n_comparisons_tmin] =
       state_.t_min_final_[fp.target_].add_bitfield(
           oneToAll_tMin{tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_}), 0, all_set});
 #else
+  auto [non_dominated_tmin, tmin_begin, tmin_end] =
+      state_.t_min_final_[fp.target_].add_bitfield(
+          oneToAll_tMin{tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_}), 0, all_set});
+#endif
+#else
+#ifdef TB_OA_COLLECT_STATS
   auto [non_dominated_tmin, tmin_begin, tmin_end, n_comparisons_tmin] =
       state_.t_min_final_[fp.target_][0].add_bitfield(
           oneToAll_tMin{tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_}), all_set});
+#else
+  auto [non_dominated_tmin, tmin_begin, tmin_end] =
+      state_.t_min_final_[fp.target_][0].add_bitfield(
+          oneToAll_tMin{tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_}), all_set});
+#endif
 #endif
 
 #ifdef TB_OA_COLLECT_STATS
@@ -433,16 +489,27 @@ void oneToAll_engine::add_start_footpath_journey(unixtime_t const start_time, st
     j.dest_time_ = tt_.to_unixtime(day_idx_t{d}, minutes_after_midnight_t{tau + fp.duration_});
     j.dest_ = fp.target();
     j.transfers_ = 0;
+#ifdef TB_ONETOALL_BITFIELD_IDX
+    j.bitfield_ = state_.all_idx_;
+#else
     j.bitfield_ = all_set;
+#endif
 
+#ifdef TB_ONETOALL_BITFIELD_IDX
+#ifdef TB_OA_COLLECT_STATS
+    auto [non_dominated_res, res_begin, res_end, res_comparisons] = results[fp.target().v_].add_bitfield_idx(std::move(j), tt_, &bitfield_to_bitfield_idx_);
+    stats_.n_results_comparisons_ += res_comparisons;
+#else
+    auto [non_dominated_res, res_begin, res_end] = results[fp.target().v_].add_bitfield_idx(std::move(j), tt_, &bitfield_to_bitfield_idx_);
+#endif
+#else
 #ifdef TB_OA_COLLECT_STATS
     auto [non_dominated_res, res_begin, res_end, res_comparisons] = results[fp.target().v_].add_bitfield(std::move(j));
     stats_.n_results_comparisons_ += res_comparisons;
 #else
-    results[fp.target_].add_bitfield(std::move(j_fp));
+    results[fp.target_].add_bitfield(std::move(j));
 #endif
-
-    results[fp.target().v_].add_bitfield(std::move(j));
+#endif
     ++stats_.n_journeys_found_;
   }
 }
